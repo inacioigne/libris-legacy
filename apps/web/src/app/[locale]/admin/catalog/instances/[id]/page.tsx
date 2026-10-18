@@ -1,3 +1,5 @@
+import { relatedChildren } from "@/server/catalog/related";
+import { RelatedRecords } from "@/components/catalog/RelatedRecords";
 import { notFound } from "next/navigation";
 import { isLocale, messages } from "@/i18n/messages";
 import { getInstanceForEditor, resolveInstanceWork } from "@/server/catalog/instances";
@@ -14,6 +16,7 @@ export default async function InstanceDetailPage({ params, searchParams }: {
   const t = messages[locale], { saved } = await searchParams;
   return instancePage(locale, "read", async identity => {
     const envelope = await getInstanceForEditor(id);
+    const items = await relatedChildren("instances", id);
     const work = await resolveInstanceWork(envelope.instance.instance_of).catch(() => undefined);
     return <div className="space-y-6">
       <p>{t.instanceDetail}</p><h1 className="text-3xl font-semibold">{instanceTitle(envelope.instance, locale)}</h1>
@@ -25,6 +28,8 @@ export default async function InstanceDetailPage({ params, searchParams }: {
         {work ? <><a className="underline" href={`/${locale}/admin/catalog/works/${work.internal_id}`}>{work.title.flatMap(title => title.main_title.map(text => text.value)).join(" / ")}</a><p className="break-all">{work.internal_id}<br />{work.uri}</p></> : <p>{t.instanceWorkUnavailable}</p>}
       </section>
       <InstanceDescription envelope={envelope} locale={locale} />
+      {identity.permissions.includes("bibliographic:create") && <a className="inline-block rounded-lg bg-teal-700 px-4 py-2 text-white" href={`/${locale}/admin/catalog/items/new?instance=${id}`}>{t.itemNew}</a>}
+      <RelatedRecords references={items} collection="items" locale={locale} />
     </div>;
   });
 }

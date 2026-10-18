@@ -22,7 +22,9 @@ formulário, com páginas de dez Works e filtros por UUID/URI exatos. Cada opç�
 mostra título, UUID e URI e permite consultar a obra em outra aba.
 
 Não há busca textual nem filtro de Instances por Work no contrato de listagem.
-O link do contexto de Work abre a lista geral e informa essa limitação. A lista
+A M07.03 acrescenta uma seção contextual na Work usando o endpoint de relações
+com inversas, sem modificar esse contrato de listagem. A Instance também lista
+seus Items e permite criar um [Item semântico vinculado](item-editor.md). A lista
 de Instances contém título próprio (ou ausência explícita), UUID, edição,
 identificadores e referência à Work. O estado editorial serve como filtro;
 não é inventado nas linhas, pois não integra o DTO Read da listagem. O detalhe

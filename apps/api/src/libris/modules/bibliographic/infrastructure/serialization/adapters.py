@@ -1,6 +1,7 @@
 """Create and controlled partial Update over complete owned snapshots."""
 
 from rdflib import Graph, URIRef
+from rdflib.compare import isomorphic
 from rdflib.namespace import RDF
 
 from libris.modules.bibliographic.api.schemas import (
@@ -185,6 +186,17 @@ def apply_update(
     replacement = resource_to_graph(complete, references=references)
     predicates = {projection.fields[name] for name in patch}
     _authorize(graph, projection.root, predicates, profile)
+    if isinstance(update, ItemUpdate) and predicates:
+        # Item's v1 projection cannot carry all literal datatypes or auxiliary
+        # identity. Even editing a sibling in that group must not erase them.
+        projected = resource_to_graph(projection.resource)
+        if not isomorphic(
+            _selected_item_graph(graph, projection.root, predicates),
+            _selected_item_graph(projected, projection.root, predicates),
+        ):
+            raise RdfDocumentError(
+                "Substituição de campo do Item apagaria dados fora da projeção DTO."
+            )
     result = new_graph()
     for prefix, namespace in graph.namespaces():
         result.bind(prefix, namespace)
@@ -217,3 +229,16 @@ def apply_update(
         result.add(triple)
     _validate(result, identity, profile)
     return result
+
+
+def _selected_item_graph(graph: Graph, root: URIRef, predicates: set[URIRef]) -> Graph:
+    """Select v1 Item fields and their owned, one-level auxiliary descriptions."""
+    selected = new_graph()
+    owned = owned_nodes(graph, root) - {root}
+    for predicate in predicates:
+        for triple in graph.triples((root, predicate, None)):
+            selected.add(triple)
+            if triple[2] in owned:
+                for description in graph.triples((triple[2], None, None)):
+                    selected.add(description)
+    return selected

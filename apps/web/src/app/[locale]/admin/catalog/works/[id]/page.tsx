@@ -1,3 +1,5 @@
+import { relatedChildren } from "@/server/catalog/related";
+import { RelatedRecords } from "@/components/catalog/RelatedRecords";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -45,6 +47,7 @@ export default async function WorkDetailPage({
     async (access): Promise<ReactNode> => {
       try {
         const work = await getWork(id);
+        const instances = await relatedChildren("works", id);
         const t = messages[locale];
 
         return (
@@ -60,9 +63,9 @@ export default async function WorkDetailPage({
                   <div className="flex flex-wrap gap-3">
                     {access.identity.permissions.includes("bibliographic:create") && <Link href={`/${locale}/admin/catalog/instances/new?work=${id}`} className="rounded-lg border px-4 py-2">{t.instanceNew}</Link>}
                     <Link href={`/${locale}/admin/catalog/instances`} className="rounded-lg border px-4 py-2">{t.instances}</Link>
-                    <Link href={`/${locale}/admin/catalog/works/${id}/edit`} className="rounded-lg bg-teal-700 px-4 py-2 font-medium text-white hover:bg-teal-800">
+                    {access.identity.permissions.includes("bibliographic:update") && <Link href={`/${locale}/admin/catalog/works/${id}/edit`} className="rounded-lg bg-teal-700 px-4 py-2 font-medium text-white hover:bg-teal-800">
                       {t.workEditTitle}
-                    </Link>
+                    </Link>}
                     <Link href={`/${locale}/admin/catalog/works`} className="rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 dark:border-gray-700 dark:text-slate-200">
                       {t.backToWorks}
                     </Link>
@@ -70,7 +73,6 @@ export default async function WorkDetailPage({
                 </div>
 
                 <dl className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900 md:grid-cols-2">
-                  <div className="md:col-span-2"><p>{t.instanceNoWorkFilter}</p></div>
                   <div className="space-y-1">
                     <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{t.workTitle}</dt>
                     <dd className="text-lg font-medium">{titleForWork(work)}</dd>
@@ -92,6 +94,7 @@ export default async function WorkDetailPage({
                     <dd>{summarizeReferences(work.subject as unknown[])}</dd>
                   </div>
                 </dl>
+                <RelatedRecords references={instances} collection="instances" locale={locale} />
               </div>
             {/* </div> */}
           </AdminFrame>
@@ -120,7 +123,7 @@ export default async function WorkDetailPage({
         <AdminAccessState locale={locale} access={access} />
       </AdminFrame>
     ),
-    { mode: "any", requiredPermissions: ["bibliographic:create", "bibliographic:update", "bibliographic:delete", "metadata_revision:create"] },
+    { mode: "all", requiredPermissions: ["metadata_revision:read"] },
   );
 
   return page;

@@ -1,5 +1,11 @@
 # Libris
 
+A M07.03 acrescenta o [editor de Item semântico](docs/architecture/item-editor.md)
+pt/en e a navegação Work → Instance → Item por relações reais. Criação, consulta,
+edição parcial, pré-validação e conciliação de ETags preservam os contratos v1;
+Item não representa inventário operacional ou circulação. Consulte as
+[evidências M07.03](docs/architecture/item-editor-m0703-verification-2026-10-18.md).
+
 A M07.02 implementa o [editor administrativo de Instance](docs/architecture/instance-editor.md)
 em português e inglês: listagem, detalhe, criação com seleção explícita de Work e
 edição parcial com ETag/If-Match e comparação de conflitos. Reutiliza DTOs v1,

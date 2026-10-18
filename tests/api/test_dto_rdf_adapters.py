@@ -574,6 +574,29 @@ def test_explicit_string_datatype_is_a_projection_limit() -> None:
     assert set(graph) == before
 
 
+@pytest.mark.parametrize("nested", [False, True])
+def test_item_editor_rejects_datatype_loss_in_replaced_group(nested: bool) -> None:
+    dto = resource("item")
+    graph = resource_to_graph(dto)
+    root = URIRef(dto.uri)
+    if nested:
+        node = next(graph.objects(root, BF.note))
+        graph.add((node, RDFS.label, Literal("Typed note", datatype=XSD.string)))
+        patch = ItemUpdate(note=[{"label": [{"value": "Replacement"}]}])
+        unrelated = ItemUpdate(custodial_history=[])
+    else:
+        graph.add((root, BF.custodialHistory, Literal("Typed history", datatype=XSD.string)))
+        patch = ItemUpdate(custodial_history=[{"value": "Replacement"}])
+        unrelated = ItemUpdate(note=[])
+    before = set(graph)
+    with pytest.raises(RdfDocumentError, match="projeção DTO"):
+        apply_update(graph, patch, identity(dto), profile=INSTITUTIONAL_PROFILE_ID)
+    assert set(graph) == before
+    preserved = apply_update(graph, unrelated, identity(dto), profile=INSTITUTIONAL_PROFILE_ID)
+    assert any(isinstance(value, Literal) and value.datatype == XSD.string
+               for value in preserved.objects())
+
+
 def test_mutated_update_is_revalidated() -> None:
     dto = resource()
     graph = resource_to_graph(dto)
