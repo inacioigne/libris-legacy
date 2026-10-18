@@ -1,6 +1,13 @@
 "use server";
 
-import { type WorkCreate, type WorkRead, type WorkUpdate, CatalogAccessError, createWork, updateWork } from "./index";
+import {
+  type WorkCreate,
+  type WorkRead,
+  type WorkUpdate,
+  CatalogAccessError,
+  createWork,
+  updateWork,
+} from "./index";
 import { workValidationFeedback } from "./problems";
 
 export type WorkFormState = {
@@ -17,7 +24,8 @@ function readString(value: FormDataEntryValue | null | undefined): string {
 }
 
 function readList(formData: FormData, key: string): string[] {
-  return formData.getAll(key)
+  return formData
+    .getAll(key)
     .map((value) => readString(value))
     .filter((value) => value.length > 0);
 }
@@ -27,7 +35,10 @@ function addReference(value: string): { uri: string } | null {
   return uri ? { uri } : null;
 }
 
-function buildTitleValue(title: string, subtitle?: string): WorkCreate["title"] {
+function buildTitleValue(
+  title: string,
+  subtitle?: string,
+): WorkCreate["title"] {
   const mainTitle = title.trim();
   const subtitleValue = subtitle?.trim();
   const entry: WorkCreate["title"][number] = {
@@ -49,18 +60,24 @@ function buildContributionEntries(
   agentValues: string[],
   roleValues: string[],
 ): Array<{ agent: { uri: string }; role: { uri: string }[] }> {
-  return Array.from({ length: Math.max(agentValues.length, roleValues.length) }, (_, index) => {
-    const agent = addReference(agentValues[index] ?? "");
-    const role = addReference(roleValues[index] ?? "");
-    if (!agent || !role) {
-      return null;
-    }
+  return Array.from(
+    { length: Math.max(agentValues.length, roleValues.length) },
+    (_, index) => {
+      const agent = addReference(agentValues[index] ?? "");
+      const role = addReference(roleValues[index] ?? "");
+      if (!agent || !role) {
+        return null;
+      }
 
-    return {
-      agent,
-      role: [role],
-    };
-  }).filter((value): value is { agent: { uri: string }; role: { uri: string }[] } => Boolean(value));
+      return {
+        agent,
+        role: [role],
+      };
+    },
+  ).filter(
+    (value): value is { agent: { uri: string }; role: { uri: string }[] } =>
+      Boolean(value),
+  );
 }
 
 function buildCreatePayload(formData: FormData): WorkCreate {
@@ -70,7 +87,9 @@ function buildCreatePayload(formData: FormData): WorkCreate {
   const subject = readList(formData, "subject").map((uri) => ({ uri }));
   const agentValues = readList(formData, "contribution_agent");
   const roleValues = readList(formData, "contribution_role");
-  const notes = readList(formData, "note").map((value) => ({ label: [{ value }] })).filter(Boolean);
+  const notes = readList(formData, "note")
+    .map((value) => ({ label: [{ value }] }))
+    .filter(Boolean);
 
   const contribution = buildContributionEntries(agentValues, roleValues);
 
@@ -101,7 +120,9 @@ function buildUpdatePayload(formData: FormData): WorkUpdate {
   const subject = readList(formData, "subject").map((uri) => ({ uri }));
   const agentValues = readList(formData, "contribution_agent");
   const roleValues = readList(formData, "contribution_role");
-  const notes = readList(formData, "note").map((value) => ({ label: [{ value }] })).filter(Boolean);
+  const notes = readList(formData, "note")
+    .map((value) => ({ label: [{ value }] }))
+    .filter(Boolean);
 
   const payload: WorkUpdate = {};
 
@@ -134,12 +155,17 @@ export async function createWorkAction(
   const locale = readString(formData.get("locale")) || "pt";
   const payload = buildCreatePayload(formData);
   if (!payload.title?.[0]?.main_title?.[0]?.value?.trim()) {
-    return { ok: false, message: "The main title is required.", field: "title" };
+    return {
+      ok: false,
+      message: "The main title is required.",
+      field: "title",
+    };
   }
-  // console.log("[ACTION..]", formData)
+ 
 
   try {
     const created = await createWork(payload);
+     console.log("[ACTION..]", created);
     return {
       ok: true,
       message: "Work saved successfully.",
@@ -147,11 +173,16 @@ export async function createWorkAction(
     };
   } catch (error) {
     if (error instanceof CatalogAccessError && error.status === 422) {
-      return { ok: false, field: "submit", ...workValidationFeedback(error.detail, locale === "en" ? "en" : "pt") };
+      return {
+        ok: false,
+        field: "submit",
+        ...workValidationFeedback(error.detail, locale === "en" ? "en" : "pt"),
+      };
     }
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not create the work.",
+      message:
+        error instanceof Error ? error.message : "Could not create the work.",
       field: "submit",
     };
   }
@@ -165,15 +196,27 @@ export async function updateWorkAction(
   const id = readString(formData.get("id"));
   const ifMatch = readString(formData.get("ifMatch"));
   if (!id) {
-    return { ok: false, message: "The work identifier is missing.", field: "id" };
+    return {
+      ok: false,
+      message: "The work identifier is missing.",
+      field: "id",
+    };
   }
   if (!ifMatch) {
-    return { ok: false, message: "ETag is missing. Reload the work before editing it again.", field: "submit" };
+    return {
+      ok: false,
+      message: "ETag is missing. Reload the work before editing it again.",
+      field: "submit",
+    };
   }
 
   const payload = buildUpdatePayload(formData);
   if (!payload.title?.[0]?.main_title?.[0]?.value?.trim()) {
-    return { ok: false, message: "The main title is required.", field: "title" };
+    return {
+      ok: false,
+      message: "The main title is required.",
+      field: "title",
+    };
   }
 
   try {
@@ -185,11 +228,16 @@ export async function updateWorkAction(
     };
   } catch (error) {
     if (error instanceof CatalogAccessError && error.status === 422) {
-      return { ok: false, field: "submit", ...workValidationFeedback(error.detail, locale === "en" ? "en" : "pt") };
+      return {
+        ok: false,
+        field: "submit",
+        ...workValidationFeedback(error.detail, locale === "en" ? "en" : "pt"),
+      };
     }
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not update the work.",
+      message:
+        error instanceof Error ? error.message : "Could not update the work.",
       field: "submit",
     };
   }

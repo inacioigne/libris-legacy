@@ -29,7 +29,7 @@ export default function UserDropdown({
     setIsSubDropdownOpen(false);
   };
 
-  console.log("USER: ", result.identity.roles);
+  // console.log("USER: ", result.identity.roles);
 
   return (
     <div className="relative ">

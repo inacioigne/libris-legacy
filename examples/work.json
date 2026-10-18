@@ -1,0 +1,53 @@
+{
+  "title": [
+    {
+      "kind": "Title",
+      "main_title": [
+        {
+          "value": "Introdução à organização do conhecimento",
+          "language": "pt"
+        }
+      ],
+      "subtitle": [
+        {
+          "value": "Fundamentos e aplicações",
+          "language": "pt"
+        }
+      ]
+    }
+  ],
+  "language": [
+    {
+      "uri": "http://id.loc.gov/vocabulary/languages/por"
+    }
+  ],
+  "content": [
+    {
+      "uri": "http://id.loc.gov/vocabulary/contentTypes/txt"
+    }
+  ],
+  "note": [
+    {
+      "label": [
+        {
+          "value": "Obra introdutória destinada a estudantes de biblioteconomia.",
+          "language": "pt"
+        }
+      ]
+    }
+  ]
+}
+
+{
+  internal_id: '1137c685-3786-40c1-a264-2f19b1d792ed',
+  uri: 'http://localhost:8000/resources/1137c685-3786-40c1-a264-2f19b1d792ed',
+  title: [ { kind: 'Title', main_title: [Array], subtitle: [] } ],
+  language: [],
+  content: [],
+  contribution: [],
+  subject: [],
+  classification: [],
+  related_to: [],
+  translation_of: [],
+  note: []
+}

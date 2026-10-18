@@ -49,8 +49,8 @@ export default async function WorkDetailPage({
 
         return (
           <AdminFrame locale={locale}>
-            <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-              <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} />
+            {/* <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]"> */}
+              {/* <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} /> */}
               <div className="min-w-0">
                 <div className="mb-6 flex items-center justify-between gap-4">
                   <div>
@@ -90,7 +90,7 @@ export default async function WorkDetailPage({
                   </div>
                 </dl>
               </div>
-            </div>
+            {/* </div> */}
           </AdminFrame>
         );
       } catch (error) {

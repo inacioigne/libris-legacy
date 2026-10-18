@@ -90,8 +90,8 @@ export default async function CatalogWorksPage({
       } catch (error) {
         return (
           <AdminFrame locale={locale}>
-            <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-              <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} />
+            {/* <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]"> */}
+              {/* <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} /> */}
               <div className="min-w-0 rounded-2xl border border-red-200 bg-white p-6 dark:border-red-900 dark:bg-gray-900">
                 <h1 className="text-3xl font-semibold">{messages[locale].workList}</h1>
                 <p className="mt-4 text-red-700 dark:text-red-300">
@@ -101,15 +101,15 @@ export default async function CatalogWorksPage({
                   {messages[locale].retry}
                 </Link>
               </div>
-            </div>
+            {/* </div> */}
           </AdminFrame>
         );
       }
 
       return (
         <AdminFrame locale={locale}>
-          <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-            <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} />
+          {/* <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]"> */}
+            {/* <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} /> */}
             <div className="min-w-0">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -201,7 +201,7 @@ export default async function CatalogWorksPage({
                   )}
                 </>
               )}
-            </div>
+            {/* </div> */}
           </div>
         </AdminFrame>
       );
