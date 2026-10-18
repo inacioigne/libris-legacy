@@ -80,6 +80,12 @@ export function WorkEditorForm({ locale, mode, action, work, workId, ifMatch, ca
       {state.message && !state.ok ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200" aria-live="polite">
           {state.message}
+          {state.issues?.length ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {state.issues.map((issue) => <li key={issue}>{issue}</li>)}
+            </ul>
+          ) : null}
+          {state.requestId ? <p className="mt-2">{t.workFormRequestId}: {state.requestId}</p> : null}
         </div>
       ) : null}
 
@@ -107,6 +113,8 @@ export function WorkEditorForm({ locale, mode, action, work, workId, ifMatch, ca
           />
         </label>
       </div>
+
+      <p className="text-sm text-slate-600 dark:text-slate-300">{t.workFormUriHelp}</p>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">

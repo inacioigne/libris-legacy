@@ -1,12 +1,15 @@
 "use server";
 
-import { type WorkCreate, type WorkRead, type WorkUpdate, createWork, updateWork } from "./index";
+import { type WorkCreate, type WorkRead, type WorkUpdate, CatalogAccessError, createWork, updateWork } from "./index";
+import { workValidationFeedback } from "./problems";
 
 export type WorkFormState = {
   ok: boolean;
   message?: string;
   field?: string;
   redirectTo?: string;
+  issues?: string[];
+  requestId?: string;
 };
 
 function readString(value: FormDataEntryValue | null | undefined): string {
@@ -133,6 +136,7 @@ export async function createWorkAction(
   if (!payload.title?.[0]?.main_title?.[0]?.value?.trim()) {
     return { ok: false, message: "The main title is required.", field: "title" };
   }
+  // console.log("[ACTION..]", formData)
 
   try {
     const created = await createWork(payload);
@@ -142,6 +146,9 @@ export async function createWorkAction(
       redirectTo: `/${locale}/admin/catalog/works/${created.internal_id}`,
     };
   } catch (error) {
+    if (error instanceof CatalogAccessError && error.status === 422) {
+      return { ok: false, field: "submit", ...workValidationFeedback(error.detail, locale === "en" ? "en" : "pt") };
+    }
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Could not create the work.",
@@ -177,6 +184,9 @@ export async function updateWorkAction(
       redirectTo: `/${locale}/admin/catalog/works/${updated.internal_id}`,
     };
   } catch (error) {
+    if (error instanceof CatalogAccessError && error.status === 422) {
+      return { ok: false, field: "submit", ...workValidationFeedback(error.detail, locale === "en" ? "en" : "pt") };
+    }
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Could not update the work.",

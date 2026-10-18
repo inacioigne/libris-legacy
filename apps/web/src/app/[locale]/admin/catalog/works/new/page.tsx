@@ -25,12 +25,12 @@ export default async function NewWorkPage({
       const t = messages[locale];
       return (
         <AdminFrame locale={locale}>
-          <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-            <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} />
+          {/* <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]"> */}
+            {/* <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} /> */}
             <div className="min-w-0">
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.1em] text-teal-800 dark:text-teal-300">{t.cataloging}</p>
+                  <p className="text-sm font-semibold uppercase text-teal-800 dark:text-teal-300">{t.cataloging}</p>
                   <h1 className="mt-2 text-3xl font-semibold">{t.workCreateTitle}</h1>
                 </div>
               </div>
@@ -41,7 +41,7 @@ export default async function NewWorkPage({
                 cancelHref={`/${locale}/admin/catalog/works`}
               />
             </div>
-          </div>
+          {/* </div> */}
         </AdminFrame>
       );
     },
