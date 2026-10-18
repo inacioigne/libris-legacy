@@ -1,3 +1,4 @@
+import { AuthorityPanel } from "@/server/catalog/authority-panel";
 import { notFound } from "next/navigation";
 import { isLocale, messages } from "@/i18n/messages";
 import { getItemForEditor } from "@/server/catalog/items";
@@ -28,6 +29,7 @@ export default async function ItemDetailPage({ params, searchParams }: {
       </nav>
       {!instance && <p>{t.itemInstanceUnavailable}</p>}
       <section><h2>{t.itemInstance}</h2><pre className="whitespace-pre-wrap break-all">{JSON.stringify(envelope.item.item_of, null, 2)}</pre></section>
+      <AuthorityPanel collection="items" id={id} locale={locale} permissions={identity.permissions} />
       <ItemDescription envelope={envelope} locale={locale} />
     </div>;
   });

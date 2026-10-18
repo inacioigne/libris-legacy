@@ -1,3 +1,4 @@
+import { AuthorityPanel } from "@/server/catalog/authority-panel";
 import { relatedChildren } from "@/server/catalog/related";
 import { RelatedRecords } from "@/components/catalog/RelatedRecords";
 import type { ReactNode } from "react";
@@ -94,6 +95,7 @@ export default async function WorkDetailPage({
                     <dd>{summarizeReferences(work.subject as unknown[])}</dd>
                   </div>
                 </dl>
+      <AuthorityPanel collection="works" id={id} locale={locale} permissions={access.identity.permissions} />
                 <RelatedRecords references={instances} collection="instances" locale={locale} />
               </div>
             {/* </div> */}

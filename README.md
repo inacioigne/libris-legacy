@@ -1,5 +1,12 @@
 # Libris
 
+A M07.04 acrescenta [consulta e vínculos visuais de Agent/Subject](docs/architecture/authority-links.md)
+nos detalhes administrativos de Work, Instance e Item, em pt/en, com seleção de
+autoridades existentes, papéis de contribuição e concorrência relacional.
+Preserva revisões independentes e a matriz de permissões, sem reconciliação externa
+ou novo CRUD visual de autoridades. Consulte as
+[evidências M07.04](docs/architecture/authority-links-m0704-verification-2026-10-18.md).
+
 A M07.03 acrescenta o [editor de Item semântico](docs/architecture/item-editor.md)
 pt/en e a navegação Work → Instance → Item por relações reais. Criação, consulta,
 edição parcial, pré-validação e conciliação de ETags preservam os contratos v1;

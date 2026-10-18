@@ -33,6 +33,7 @@ export interface ListWorksQuery {
 }
 
 export type CatalogPermission =
+  | "authority:read"
   | "bibliographic:read"
   | "bibliographic:create"
   | "bibliographic:update";
@@ -147,7 +148,8 @@ export async function executeCatalogRequest<T>(
   requiredPermission: CatalogPermission,
 ): Promise<T> {
   const context = await resolveSessionContext(options);
-  const required = requiredPermission === "bibliographic:read"
+  const required = requiredPermission === "authority:read" ? ["authority:read", "metadata_revision:read"]
+    : requiredPermission === "bibliographic:read"
     ? catalogPermissions.read
     : requiredPermission === "bibliographic:create"
       ? catalogPermissions.create
@@ -272,7 +274,8 @@ export async function requireCatalogPermission(
   options: CatalogRequestOptions = {},
 ): Promise<CatalogSessionContext> {
   const context = await resolveSessionContext(options);
-  const expected = required === "bibliographic:read"
+  const expected = required === "authority:read" ? ["authority:read", "metadata_revision:read"]
+    : required === "bibliographic:read"
     ? catalogPermissions.read
     : required === "bibliographic:create"
       ? catalogPermissions.create

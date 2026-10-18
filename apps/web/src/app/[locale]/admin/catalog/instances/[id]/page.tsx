@@ -1,3 +1,4 @@
+import { AuthorityPanel } from "@/server/catalog/authority-panel";
 import { relatedChildren } from "@/server/catalog/related";
 import { RelatedRecords } from "@/components/catalog/RelatedRecords";
 import { notFound } from "next/navigation";
@@ -29,6 +30,7 @@ export default async function InstanceDetailPage({ params, searchParams }: {
       </section>
       <InstanceDescription envelope={envelope} locale={locale} />
       {identity.permissions.includes("bibliographic:create") && <a className="inline-block rounded-lg bg-teal-700 px-4 py-2 text-white" href={`/${locale}/admin/catalog/items/new?instance=${id}`}>{t.itemNew}</a>}
+      <AuthorityPanel collection="instances" id={id} locale={locale} permissions={identity.permissions} />
       <RelatedRecords references={items} collection="items" locale={locale} />
     </div>;
   });
