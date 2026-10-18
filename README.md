@@ -355,3 +355,34 @@ A M06.01 / #53 acrescenta a [baseline OpenAPI operacional](docs/architecture/cat
 com geração exclusiva, check de drift, CI e [inventário das operações reais](docs/architecture/catalogographic-openapi-inventory.md).
 A especificação documental 1.0.0 permanece preservada; esta entrega não implementa
 cliente TypeScript, BFF catalográfico ou editor Work.
+
+
+## M07 — Próximo incremento: editor de catalogação
+
+A M06 (#52–#59, issues encerradas) estabeleceu a integração OpenAPI → cliente TypeScript
+gerado → BFF Next.js com sessão OIDC e as primeiras telas de Work: listagem, detalhe,
+criação e edição. Isso constitui **editor inicial de Work**, não o editor catalográfico
+completo. A capacidade operacional deve ser aferida pelos testes e evidências
+disponíveis, sem confundi-la com homologação institucional. As seções históricas
+deste README descrevem entregas no momento em que ocorreram; para planejar novos
+trabalhos, utilizar o estado atual do código e os documentos abaixo.
+
+A [proposta de execução M07](docs/architecture/m07-cataloging-editor.md) organiza
+o desenvolvimento incremental de Work → Instance → Item, vínculos com Agent e
+Subject, diagnóstico SHACL e ciclo editorial autorizado, reutilizando a API
+FastAPI, a persistência PostgreSQL e as decisões BIBFRAME existentes. O escopo da
+milestone deverá ser confirmado em issues específicas; documentação prospectiva
+não significa funcionalidade já entregue.
+
+**Referências funcionais:** MARVA (editor BIBFRAME), Sinopia (perfis declarativos),
+Koha e FOLIO (fluxos bibliotecários) e [Open Library](https://openlibrary.org/)
+(UX de obras, edições, autores, capas e navegação). Open Library é referência de
+experiência e organização, não fonte do modelo canônico ou integração implementada.
+BIBFRAME 2.0/RDF permanece a base do Libris, com extensões governadas.
+
+Para contribuir na M07, consultar [AGENTS.md](AGENTS.md),
+[contratos da API](docs/architecture/catalogographic-api-testing.md),
+[perfis](docs/architecture/catalog-profiles.md) e
+[plano do editor](docs/architecture/m07-cataloging-editor.md).
+MARC21, reconciliação remota, inventário físico/circulação e busca Elasticsearch
+permanecem entregas separadas, salvo decisão explícita registrada.
