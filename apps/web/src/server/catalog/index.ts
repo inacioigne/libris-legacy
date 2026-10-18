@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createCatalogographicClient } from "../../generated/catalogographic-client";
 import type { components } from "../../generated/catalogographic-openapi";
 import { authService } from "../auth/runtime";
-import { sessionCookie, uniqueCookie, validId } from "../auth/security";
+import { assertSameOrigin, sessionCookie, uniqueCookie, validId } from "../auth/security";
 import type { AuthService, Identity } from "../auth/service";
 import { currentCorrelation, withCorrelation } from "../security-audit";
 
@@ -15,6 +15,12 @@ export type WorkListPage = components["schemas"]["CatalogPage_WorkRead_"];
 export interface WorkEnvelope {
   work: WorkRead;
   etag: string | null;
+  metadata?: {
+    editorialState: components["schemas"]["EditorialState"] | null;
+    candidateState: components["schemas"]["EditorialState"] | null;
+    revision: number;
+    profile: string;
+  };
 }
 
 export interface ListWorksQuery {
@@ -153,8 +159,7 @@ async function executeWorkRequest<T>(
   const client = createCatalogographicClient(options.service ? options.service.config.apiUrl : authService().config.apiUrl);
   const response = await request(client, context);
   if (response.error) {
-    const problem = response.response ? await response.response.clone().json().catch(() => undefined) : undefined;
-    throw mapCatalogFailure(response.response?.status ?? 500, problem ?? response.error);
+    throw mapCatalogFailure(response.response?.status ?? 500, response.error);
   }
   if (!response.data) {
     throw new CatalogAccessError(500, "api_unavailable");
@@ -180,8 +185,7 @@ export async function getWorkWithMetadata(id: string, options: CatalogRequestOpt
   });
 
   if (result.error) {
-    const problem = result.response ? await result.response.clone().json().catch(() => undefined) : undefined;
-    throw mapCatalogFailure(result.response?.status ?? 500, problem ?? result.error);
+    throw mapCatalogFailure(result.response?.status ?? 500, result.error);
   }
   if (!result.data) {
     throw new CatalogAccessError(500, "api_unavailable");
@@ -240,6 +244,10 @@ export async function createWork(payload: WorkCreate, options: CatalogRequestOpt
 }
 
 export async function updateWork(id: string, payload: WorkUpdate, options: CatalogRequestOptions = {}): Promise<WorkRead> {
+  return (await updateWorkWithMetadata(id, payload, options)).work;
+}
+
+export async function updateWorkWithMetadata(id: string, payload: WorkUpdate, options: CatalogRequestOptions = {}): Promise<WorkEnvelope> {
   const ifMatch = options.ifMatch ?? "";
   if (ifMatch.trim() === "") {
     throw new CatalogAccessError(428, "precondition_failed", "ETag required");
@@ -255,7 +263,7 @@ export async function updateWork(id: string, payload: WorkUpdate, options: Catal
         Accept: "application/json",
       },
     });
-    return { data: result.data as WorkRead, error: result.error, response: result.response };
+    return { data: result.data ? { work: result.data, etag: result.response.headers.get("ETag") } : undefined, error: result.error, response: result.response };
   }, options, "bibliographic:update");
 }
 
@@ -273,4 +281,45 @@ export async function requireCatalogPermission(
     throw new CatalogAccessError(403, "permission_denied", context.identity);
   }
   return context;
+}
+
+
+export async function requireCatalogMutationOrigin(options: CatalogRequestOptions = {}): Promise<void> {
+  const config = (options.service ?? authService()).config;
+  const incoming = options.requestHeaders ?? await headers();
+  try { assertSameOrigin(new Request(config.origin, { headers: incoming }), config); }
+  catch { throw new CatalogAccessError(403, "permission_denied"); }
+}
+
+
+// Enrich only an exactly matching generation. Never pair a newer editorial
+// state with the content/ETag already loaded by the editor.
+export async function getWorkForEditor(id: string, options: CatalogRequestOptions = {}): Promise<WorkEnvelope> {
+  const envelope = await getWorkWithMetadata(id, options);
+  return enrichWorkEnvelope(envelope, options);
+}
+
+export async function enrichWorkEnvelope(envelope: WorkEnvelope, options: CatalogRequestOptions = {}): Promise<WorkEnvelope> {
+  try {
+    const metadata = await executeWorkRequest(async (client, context) => {
+      const requestHeaders = { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId };
+      const state = await client.GET("/api/v1/catalog/{collection}/{id}/editorial", {
+        params: { path: { collection: "works", id: envelope.work.internal_id } }, headers: requestHeaders,
+      });
+      if (!state.data || state.response.headers.get("ETag") !== envelope.etag)
+        return { error: state.error, response: state.response };
+      const revision = await client.GET("/api/v1/catalog/{collection}/{id}/revisions/{number}", {
+        params: { path: { collection: "works", id: envelope.work.internal_id, number: state.data.current_revision } }, headers: requestHeaders,
+      });
+      return { data: revision.data ? {
+        editorialState: state.data.editorial_state, candidateState: state.data.candidate_state,
+        revision: state.data.current_revision, profile: revision.data.profile,
+      } : undefined, error: revision.error, response: revision.response };
+    }, options, "bibliographic:read");
+    return { ...envelope, metadata };
+  } catch {
+    // Optional metadata may require permissions beyond editing; no invented
+    // state/profile, no loss of a successful save, and no raw error disclosure.
+    return envelope;
+  }
 }

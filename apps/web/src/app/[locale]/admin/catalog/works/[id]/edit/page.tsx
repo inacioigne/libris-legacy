@@ -7,8 +7,8 @@ import { guardAdminContent } from "@/server/admin/access";
 import { adminNavigation } from "@/server/admin/navigation";
 import { AdminAccessState, AdminFrame, AdminNavigation } from "@/server/admin/shell";
 import { requestIdentity } from "@/server/auth/request";
-import { getWorkWithMetadata } from "@/server/catalog";
-import { updateWorkAction } from "@/server/catalog/actions";
+import { getWorkForEditor } from "@/server/catalog";
+import { reloadWorkAction, updateWorkAction } from "@/server/catalog/actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +26,7 @@ export default async function EditWorkPage({
     async (access): Promise<ReactNode> => {
       const t = messages[locale];
       try {
-        const { work, etag } = await getWorkWithMetadata(id);
+        const { work, etag, metadata } = await getWorkForEditor(id);
         return (
           <AdminFrame locale={locale}>
             <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
@@ -45,7 +45,9 @@ export default async function EditWorkPage({
                   locale={locale as Locale}
                   mode="edit"
                   action={updateWorkAction}
+                  reload={reloadWorkAction}
                   work={work}
+                  metadata={metadata}
                   workId={id}
                   ifMatch={etag ?? undefined}
                   cancelHref={`/${locale}/admin/catalog/works/${id}`}
@@ -62,7 +64,7 @@ export default async function EditWorkPage({
               <div className="min-w-0 rounded-2xl border border-red-200 bg-white p-6 dark:border-red-900 dark:bg-gray-900">
                 <h1 className="text-3xl font-semibold">{t.workEditTitle}</h1>
                 <p className="mt-4 text-red-700 dark:text-red-300">
-                  {error instanceof Error ? error.message : "Work could not be loaded."}
+                  {t.workEditorLoadFailed}
                 </p>
                 <Link href={`/${locale}/admin/catalog/works`} className="mt-6 inline-block font-semibold text-teal-700 dark:text-teal-300">
                   {t.backToWorks}

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-class DevTools {
+export class DevTools {
   failures: string[] = [];
   documents: { path: string; status: number }[] = [];
   origins: string[] = [];
@@ -49,7 +49,7 @@ class DevTools {
   }
   close() { this.socket.close(); }
 }
-async function connect(url: string): Promise<DevTools> {
+export async function connect(url: string): Promise<DevTools> {
   const socket = new WebSocket(url);
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener("open", () => resolve(), { once: true });
@@ -57,7 +57,7 @@ async function connect(url: string): Promise<DevTools> {
   });
   return new DevTools(socket);
 }
-async function until(browser: DevTools, expression: string) {
+export async function until(browser: DevTools, expression: string) {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (await browser.evaluate(expression)) return;
     await delay(100);

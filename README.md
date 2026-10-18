@@ -359,6 +359,13 @@ cliente TypeScript, BFF catalográfico ou editor Work.
 
 ## M07 — Próximo incremento: editor de catalogação
 
+A M07.01 (#61) revisa o editor Work com PATCH por grupo alterado, títulos/variantes
+multilíngues, contribuições e notas completas, diagnósticos pt/en e comparação
+explícita de versões em conflitos 412. Dados fora do formulário permanecem
+preservados; a API bloqueia substituições sem representação segura. Consulte o
+[inventário, testes executados e limites da M07.01](docs/architecture/work-editor-m0701-verification-2026-10-18.md).
+Aceite por catalogador e homologação institucional permanecem independentes.
+
 A M06 (#52–#59, issues encerradas) estabeleceu a integração OpenAPI → cliente TypeScript
 gerado → BFF Next.js com sessão OIDC e as primeiras telas de Work: listagem, detalhe,
 criação e edição. Isso constitui **editor inicial de Work**, não o editor catalográfico
