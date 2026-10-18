@@ -6,6 +6,8 @@ import { isLocale, messages } from "@/i18n/messages";
 import { getInstanceForEditor, resolveInstanceWork } from "@/server/catalog/instances";
 import { instancePage } from "@/server/catalog/instance-page";
 import { InstanceDescription, instanceTitle } from "@/components/catalog/InstanceViews";
+import { getEditorialDashboard } from "@/server/catalog/editorial";
+import { EditorialPanel } from "@/components/catalog/EditorialPanel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,6 +19,7 @@ export default async function InstanceDetailPage({ params, searchParams }: {
   const t = messages[locale], { saved } = await searchParams;
   return instancePage(locale, "read", async identity => {
     const envelope = await getInstanceForEditor(id);
+    const editorial = await getEditorialDashboard("instances", id, identity.permissions);
     const items = await relatedChildren("instances", id);
     const work = await resolveInstanceWork(envelope.instance.instance_of).catch(() => undefined);
     return <div className="space-y-6">
@@ -29,6 +32,7 @@ export default async function InstanceDetailPage({ params, searchParams }: {
         {work ? <><a className="underline" href={`/${locale}/admin/catalog/works/${work.internal_id}`}>{work.title.flatMap(title => title.main_title.map(text => text.value)).join(" / ")}</a><p className="break-all">{work.internal_id}<br />{work.uri}</p></> : <p>{t.instanceWorkUnavailable}</p>}
       </section>
       <InstanceDescription envelope={envelope} locale={locale} />
+      <EditorialPanel collection="instances" id={id} locale={locale} permissions={identity.permissions} initial={editorial} />
       {identity.permissions.includes("bibliographic:create") && <a className="inline-block rounded-lg bg-teal-700 px-4 py-2 text-white" href={`/${locale}/admin/catalog/items/new?instance=${id}`}>{t.itemNew}</a>}
       <AuthorityPanel collection="instances" id={id} locale={locale} permissions={identity.permissions} />
       <RelatedRecords references={items} collection="items" locale={locale} />

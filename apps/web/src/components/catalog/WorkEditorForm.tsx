@@ -17,9 +17,10 @@ type Props = {
   metadata?: WorkEnvelope["metadata"];
   ifMatch?: string;
   cancelHref: string;
+  validate?: (data: FormData) => Promise<WorkFormState>;
 };
 
-export function WorkEditorForm({ locale, mode, action, reload, work, workId, ifMatch, metadata, cancelHref }: Props) {
+export function WorkEditorForm({ locale, mode, action, reload, work, workId, ifMatch, metadata, cancelHref, validate }: Props) {
   const t = messages[locale];
   const [state, formAction, pending] = useActionState(action, { ok: true });
   const [base, setBase] = useState(() => draftFromWork(work));
@@ -145,6 +146,13 @@ export function WorkEditorForm({ locale, mode, action, reload, work, workId, ifM
     </details>}
     <div className="flex flex-wrap justify-end gap-3">
       <a href={cancelHref} className={buttonClass}>{t.workFormCancel}</a>
+      {mode === "create" && validate && <button type="button" className={buttonClass} disabled={busy} onClick={async () => {
+        if (!form.current?.reportValidity()) return;
+        setLoading(true);
+        try { const data = new FormData(); data.set("locale", locale); data.set("payload", JSON.stringify(createPayload(draft))); setFeedback(await validate(data)); }
+        catch { setFeedback({ ok: false, message: t.workEditorUnavailable }); }
+        finally { setLoading(false); }
+      }}>{t.workValidate}</button>}
       <button type="submit" disabled={busy || needsComparison || Boolean(remote) || (mode === "edit" && (!etag || !dirty))} className="rounded-lg bg-teal-700 px-4 py-2 font-medium text-white disabled:opacity-50">{t.workFormSave}</button>
     </div>
   </form>;

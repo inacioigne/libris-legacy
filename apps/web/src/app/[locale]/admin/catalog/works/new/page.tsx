@@ -6,7 +6,7 @@ import { guardAdminContent } from "@/server/admin/access";
 import { adminNavigation } from "@/server/admin/navigation";
 import { AdminAccessState, AdminFrame, AdminNavigation } from "@/server/admin/shell";
 import { requestIdentity } from "@/server/auth/request";
-import { createWorkAction } from "@/server/catalog/actions";
+import { createWorkAction, validateWorkAction } from "@/server/catalog/actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +38,7 @@ export default async function NewWorkPage({
                 locale={locale as Locale}
                 mode="create"
                 action={createWorkAction}
+                validate={validateWorkAction}
                 cancelHref={`/${locale}/admin/catalog/works`}
               />
             </div>

@@ -7,6 +7,12 @@ Preserva revisões independentes e a matriz de permissões, sem reconciliação 
 ou novo CRUD visual de autoridades. Consulte as
 [evidências M07.04](docs/architecture/authority-links-m0704-verification-2026-10-18.md).
 
+A M07.05 integra [governança editorial](docs/architecture/cataloging-editorial-m0705.md)
+nas telas administrativas de Work, Instance e Item: estado, revisões, diff
+semântico, auditoria autorizada, transições com ETag e pré-validação de criação.
+Consulte as [evidências datadas](docs/architecture/cataloging-editorial-m0705-verification-2026-10-18.md)
+para comandos, limites e itens ainda não verificados.
+
 A M07.03 acrescenta o [editor de Item semântico](docs/architecture/item-editor.md)
 pt/en e a navegação Work → Instance → Item por relações reais. Criação, consulta,
 edição parcial, pré-validação e conciliação de ETags preservam os contratos v1;

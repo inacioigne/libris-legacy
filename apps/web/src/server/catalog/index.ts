@@ -269,6 +269,14 @@ export async function updateWorkWithMetadata(id: string, payload: WorkUpdate, op
   }, options, "bibliographic:update");
 }
 
+export async function validateWork(payload: WorkCreate, options: CatalogRequestOptions = {}) {
+  return executeCatalogRequest(async (client, context) => client.POST("/api/v1/catalog/{collection}/validation", {
+    params: { path: { collection: "works" } },
+    body: { kind: "dto", profile_release: "monograph-v1.1", resource: payload },
+    headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private" },
+  }), options, "bibliographic:create");
+}
+
 export async function requireCatalogPermission(
   required: CatalogPermission,
   options: CatalogRequestOptions = {},

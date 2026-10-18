@@ -10,6 +10,8 @@ import { AdminAccessState, AdminFrame, AdminNavigation } from "@/server/admin/sh
 import { isLocale, messages } from "@/i18n/messages";
 import { requestIdentity } from "@/server/auth/request";
 import { getWork, type WorkRead } from "@/server/catalog";
+import { getEditorialDashboard } from "@/server/catalog/editorial";
+import { EditorialPanel } from "@/components/catalog/EditorialPanel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,6 +50,7 @@ export default async function WorkDetailPage({
     async (access): Promise<ReactNode> => {
       try {
         const work = await getWork(id);
+        const editorial = await getEditorialDashboard("works", id, access.identity.permissions);
         const instances = await relatedChildren("works", id);
         const t = messages[locale];
 
@@ -95,6 +98,7 @@ export default async function WorkDetailPage({
                     <dd>{summarizeReferences(work.subject as unknown[])}</dd>
                   </div>
                 </dl>
+                <EditorialPanel collection="works" id={id} locale={locale} permissions={access.identity.permissions} initial={editorial} />
       <AuthorityPanel collection="works" id={id} locale={locale} permissions={access.identity.permissions} />
                 <RelatedRecords references={instances} collection="instances" locale={locale} />
               </div>

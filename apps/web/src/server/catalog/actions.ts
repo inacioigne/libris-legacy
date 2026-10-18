@@ -2,7 +2,7 @@
 
 import { messages, type Locale } from "../../i18n/messages";
 import { parseEditorPayload, type WorkCreate } from "../../catalog/work-editor";
-import { CatalogAccessError, requireCatalogMutationOrigin, createWork, getWorkForEditor, enrichWorkEnvelope, updateWorkWithMetadata, type WorkEnvelope } from "./index";
+import { CatalogAccessError, requireCatalogMutationOrigin, createWork, getWorkForEditor, enrichWorkEnvelope, updateWorkWithMetadata, validateWork, type WorkEnvelope } from "./index";
 import { workErrorFeedback } from "./problems";
 
 export type WorkFormState = {
@@ -67,4 +67,15 @@ export async function reloadWorkAction(id: string, locale: Locale): Promise<Work
   const safeLocale = locale === "en" ? "en" : "pt";
   try { return { ok: true, remote: await getWorkForEditor(id) }; }
   catch (error) { return failure(error, safeLocale); }
+}
+
+export async function validateWorkAction(data: FormData): Promise<WorkFormState> {
+  const locale = localeOf(data);
+  try {
+    await requireCatalogMutationOrigin();
+    const payload = parseEditorPayload(data.get("payload"), "create") as WorkCreate;
+    const result = await validateWork(payload);
+    const feedback = workErrorFeedback(422, { validation: result }, locale);
+    return { ...feedback, ok: result.conforms === true, message: result.conforms === true ? messages[locale].workValid : feedback.message };
+  } catch (error) { return failure(error, locale); }
 }
