@@ -141,7 +141,7 @@ function mapCatalogFailure(status: number, detail?: unknown): CatalogAccessError
   return new CatalogAccessError(status || 500, "api_unavailable", detail ?? "Catalog request failed");
 }
 
-async function executeWorkRequest<T>(
+export async function executeCatalogRequest<T>(
   request: (client: ReturnType<typeof createCatalogographicClient>, context: CatalogSessionContext) => Promise<{ data?: T; error?: unknown; response?: Response }>,
   options: CatalogRequestOptions = {},
   requiredPermission: CatalogPermission,
@@ -203,7 +203,7 @@ export async function getWork(id: string, options: CatalogRequestOptions = {}): 
 }
 
 export async function listWorks(query: ListWorksQuery = {}, options: CatalogRequestOptions = {}): Promise<WorkListPage> {
-  return executeWorkRequest(async (client, context) => {
+  return executeCatalogRequest(async (client, context) => {
     const search = Object.fromEntries(
       Object.entries({
         limit: query.limit,
@@ -229,7 +229,7 @@ export async function listWorks(query: ListWorksQuery = {}, options: CatalogRequ
 }
 
 export async function createWork(payload: WorkCreate, options: CatalogRequestOptions = {}): Promise<WorkRead> {
-  return executeWorkRequest(async (client, context) => {
+  return executeCatalogRequest(async (client, context) => {
     const result = await client.POST("/api/v1/catalog/works", {
       body: payload,
       headers: {
@@ -252,7 +252,7 @@ export async function updateWorkWithMetadata(id: string, payload: WorkUpdate, op
   if (ifMatch.trim() === "") {
     throw new CatalogAccessError(428, "precondition_failed", "ETag required");
   }
-  return executeWorkRequest(async (client, context) => {
+  return executeCatalogRequest(async (client, context) => {
     const result = await client.PATCH("/api/v1/catalog/works/{id}", {
       params: { path: { id }, header: { "if-match": ifMatch } },
       body: payload,
@@ -301,7 +301,7 @@ export async function getWorkForEditor(id: string, options: CatalogRequestOption
 
 export async function enrichWorkEnvelope(envelope: WorkEnvelope, options: CatalogRequestOptions = {}): Promise<WorkEnvelope> {
   try {
-    const metadata = await executeWorkRequest(async (client, context) => {
+    const metadata = await executeCatalogRequest(async (client, context) => {
       const requestHeaders = { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId };
       const state = await client.GET("/api/v1/catalog/{collection}/{id}/editorial", {
         params: { path: { collection: "works", id: envelope.work.internal_id } }, headers: requestHeaders,

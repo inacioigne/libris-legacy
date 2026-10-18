@@ -53,7 +53,7 @@ export function Rows<T>({ label, values, onChange, empty, children, locale }: {
   </fieldset>;
 }
 
-function Texts({ label, values, onChange, path, context }: {
+export function Texts({ label, values, onChange, path, context }: {
   label: string; values: LocalizedText[]; onChange: (values: LocalizedText[]) => void; path: string; context: Context;
 }) {
   return <Rows<LocalizedText> label={label} values={values} onChange={onChange} empty={() => ({ value: "" })} locale={context.locale}>
@@ -66,7 +66,7 @@ function Texts({ label, values, onChange, path, context }: {
 }
 
 type Reference = WorkDraft["subject"][number];
-function ReferenceInput({ reference, onChange, label, path, context }: {
+export function ReferenceInput({ reference, onChange, label, path, context }: {
   reference: Reference; onChange: (reference: Reference) => void; label: string; path: string; context: Context;
 }) {
   // A structured authority reference is never demoted to a URI-only reference.
@@ -80,18 +80,7 @@ export function WorkEditorFields({ draft, onChange, locale, errors }: {
   const t = messages[locale];
   const context = { locale, errors };
   return <>
-    <Rows<WorkDraft["title"][number]> label={t.workEditorTitles} values={draft.title} onChange={title => onChange({ ...draft, title })}
-      empty={() => ({ kind: "VariantTitle", main_title: [{ value: "" }] })} locale={locale}>
-      {(title, index, change) => <>
-        <label className="block text-sm font-medium">{t.workEditorTitleKind}
-          <select aria-label={`${t.workEditorTitleKind} ${index + 1}`} className={inputClass} value={title.kind ?? "Title"} onChange={event => change({ ...title, kind: event.target.value === "Title" ? "Title" : "VariantTitle" })}>
-            <option value="Title">{t.workFormTitleLabel}</option><option value="VariantTitle">{t.workEditorVariant}</option>
-          </select>
-        </label>
-        <Texts label={t.workFormTitleLabel} values={title.main_title} onChange={main_title => change({ ...title, main_title })} path={`/title/${index}/main_title`} context={context} />
-        <Texts label={t.workFormSubtitleLabel} values={title.subtitle ?? []} onChange={subtitle => change({ ...title, subtitle })} path={`/title/${index}/subtitle`} context={context} />
-      </>}
-    </Rows>
+    <TitleFields values={draft.title} onChange={title => onChange({ ...draft, title })} locale={locale} errors={errors} />
     <p id="work-uri-help" className="text-sm">{t.workFormUriHelp}</p>
     <Rows label={t.workFormLanguageLabel} values={draft.language} onChange={language => onChange({ ...draft, language })} empty={() => ({ uri: "" })} locale={locale}>
       {(entry, index, change) => <EditorInput label={`${t.workFormLanguageLabel} ${index + 1} (URI)`} value={entry.uri} onChange={uri => change({ ...entry, uri })} path={`/language/${index}/uri`} required context={context} />}
@@ -107,13 +96,34 @@ export function WorkEditorFields({ draft, onChange, locale, errors }: {
     <Rows<WorkDraft["subject"][number]> label={t.workFormSubjectLabel} values={draft.subject} onChange={subject => onChange({ ...draft, subject })} empty={() => ({ uri: "" })} locale={locale}>
       {(entry, index, change) => <ReferenceInput label={`${t.workFormSubjectLabel} ${index + 1}`} reference={entry} onChange={change} path={`/subject/${index}`} context={context} />}
     </Rows>
-    <Rows<WorkDraft["note"][number]> label={t.workFormNoteLabel} values={draft.note} onChange={note => onChange({ ...draft, note })} empty={() => ({ label: [{ value: "" }] })} locale={locale}>
+    <NoteFields values={draft.note} onChange={note => onChange({ ...draft, note })} locale={locale} errors={errors} />
+  </>;
+}
+
+export function TitleFields({ values, onChange, locale, errors }: { values: WorkDraft["title"]; onChange: (values: WorkDraft["title"]) => void; locale: Locale; errors?: Record<string, string> }) {
+  const t = messages[locale]; const context = { locale, errors };
+  return <Rows<WorkDraft["title"][number]> label={t.workEditorTitles} values={values} onChange={onChange}
+      empty={() => ({ kind: "VariantTitle", main_title: [{ value: "" }] })} locale={locale}>
+      {(title, index, change) => <>
+        <label className="block text-sm font-medium">{t.workEditorTitleKind}
+          <select aria-label={`${t.workEditorTitleKind} ${index + 1}`} className={inputClass} value={title.kind ?? "Title"} onChange={event => change({ ...title, kind: event.target.value === "Title" ? "Title" : "VariantTitle" })}>
+            <option value="Title">{t.workFormTitleLabel}</option><option value="VariantTitle">{t.workEditorVariant}</option>
+          </select>
+        </label>
+        <Texts label={t.workFormTitleLabel} values={title.main_title} onChange={main_title => change({ ...title, main_title })} path={`/title/${index}/main_title`} context={context} />
+        <Texts label={t.workFormSubtitleLabel} values={title.subtitle ?? []} onChange={subtitle => change({ ...title, subtitle })} path={`/title/${index}/subtitle`} context={context} />
+      </>}
+    </Rows>;
+}
+
+export function NoteFields({ values, onChange, locale, errors }: { values: WorkDraft["note"]; onChange: (values: WorkDraft["note"]) => void; locale: Locale; errors?: Record<string, string> }) {
+  const t = messages[locale]; const context = { locale, errors };
+  return <Rows<WorkDraft["note"][number]> label={t.workFormNoteLabel} values={values} onChange={onChange} empty={() => ({ label: [{ value: "" }] })} locale={locale}>
       {(note, index, change) => <>
         <Texts label={t.workFormNoteLabel} values={note.label} onChange={label => change({ ...note, label })} path={`/note/${index}/label`} context={context} />
         <Rows label={t.workEditorNoteType} values={note.note_type ?? []} onChange={note_type => change({ ...note, note_type })} empty={() => ""} locale={locale}>
           {(value, typeIndex, changeType) => <EditorInput label={t.workEditorNoteType} value={value} onChange={changeType} path={`/note/${index}/note_type/${typeIndex}`} required context={context} />}
         </Rows>
       </>}
-    </Rows>
-  </>;
+    </Rows>;
 }

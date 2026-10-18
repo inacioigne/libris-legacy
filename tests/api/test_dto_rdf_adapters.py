@@ -277,6 +277,43 @@ def test_private_fragment_auxiliary_and_shared_nodes() -> None:
     assert (root, BF.title, private) not in result
 
 
+@pytest.mark.parametrize(
+    ("name", "predicate", "update"),
+    [
+        ("work", BF.title, WorkUpdate(title=[{"main_title": [{"value": "Replacement"}]}])),
+        ("instance", BF.extent, InstanceUpdate(extent=[])),
+    ],
+)
+def test_named_auxiliary_replacement_rejected_without_losing_its_uri(
+    name: str, predicate: URIRef, update: ResourceUpdate
+) -> None:
+    dto = resource(name)
+    graph = resource_to_graph(dto)
+    root = URIRef(dto.uri)
+    original = next(graph.objects(root, predicate))
+    named = URIRef(dto.uri + "#persistent-title")
+    for subject, property_uri, value in list(graph):
+        if subject == original or value == original:
+            graph.remove((subject, property_uri, value))
+            graph.add((named if subject == original else subject, property_uri,
+                       named if value == original else value))
+    before = set(graph)
+    with pytest.raises(RdfDocumentError, match="URI"):
+        apply_update(
+            graph,
+            update,
+            identity(dto),
+            profile=INSTITUTIONAL_PROFILE_ID,
+        )
+    assert set(graph) == before
+    preserved = apply_update(
+        graph, WorkUpdate(note=[]) if name == "work" else InstanceUpdate(note=[]),
+        identity(dto), profile=INSTITUTIONAL_PROFILE_ID
+    )
+    assert (root, predicate, named) in preserved
+    assert set(graph.triples((named, None, None))) <= set(preserved)
+
+
 def test_annotated_auxiliary_replacement_rejected_without_mutation() -> None:
     dto = resource()
     graph = resource_to_graph(dto)

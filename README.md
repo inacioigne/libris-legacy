@@ -1,5 +1,12 @@
 # Libris
 
+A M07.02 implementa o [editor administrativo de Instance](docs/architecture/instance-editor.md)
+em português e inglês: listagem, detalhe, criação com seleção explícita de Work e
+edição parcial com ETag/If-Match e comparação de conflitos. Reutiliza DTOs v1,
+BFF OIDC e persistência existentes, sem publicação automática. Consulte as
+[evidências técnicas datadas](docs/architecture/instance-editor-m0702-verification-2026-10-18.md)
+para resultados, limites e distinção de homologação institucional.
+
 Base inicial de um sistema integrado de gestão de bibliotecas com BIBFRAME 2.0,
 RDF e Linked Data. Monólito modular FastAPI, frontend Next.js App Router,
 PostgreSQL transacional e Elasticsearch para descoberta futura. A base visual usa

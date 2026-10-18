@@ -58,6 +58,8 @@ export default async function WorkDetailPage({
                     <h1 className="mt-2 text-3xl font-semibold">{titleForWork(work)}</h1>
                   </div>
                   <div className="flex flex-wrap gap-3">
+                    {access.identity.permissions.includes("bibliographic:create") && <Link href={`/${locale}/admin/catalog/instances/new?work=${id}`} className="rounded-lg border px-4 py-2">{t.instanceNew}</Link>}
+                    <Link href={`/${locale}/admin/catalog/instances`} className="rounded-lg border px-4 py-2">{t.instances}</Link>
                     <Link href={`/${locale}/admin/catalog/works/${id}/edit`} className="rounded-lg bg-teal-700 px-4 py-2 font-medium text-white hover:bg-teal-800">
                       {t.workEditTitle}
                     </Link>
@@ -68,6 +70,7 @@ export default async function WorkDetailPage({
                 </div>
 
                 <dl className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900 md:grid-cols-2">
+                  <div className="md:col-span-2"><p>{t.instanceNoWorkFilter}</p></div>
                   <div className="space-y-1">
                     <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{t.workTitle}</dt>
                     <dd className="text-lg font-medium">{titleForWork(work)}</dd>

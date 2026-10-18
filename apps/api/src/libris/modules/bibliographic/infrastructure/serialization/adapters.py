@@ -195,6 +195,10 @@ def apply_update(
         result.remove((projection.root, predicate, None))
     orphaned = previous_nodes - owned_nodes(result, projection.root)
     for node in orphaned:
+        if isinstance(node, URIRef):
+            raise RdfDocumentError(
+                "Substituição de auxiliar apagaria URI não representável no DTO."
+            )
         if any(triple not in projection.consumed for triple in graph.triples((node, None, None))):
             raise RdfDocumentError(
                 "Substituição de auxiliar apagaria conteúdo fora da projeção DTO."
