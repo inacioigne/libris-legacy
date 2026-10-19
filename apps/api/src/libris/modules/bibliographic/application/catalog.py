@@ -19,6 +19,9 @@ from libris.modules.bibliographic.api.schemas.common import (
 from libris.modules.bibliographic.application.editorial_postgres import PostgresReferenceResolver
 from libris.modules.bibliographic.application.relationships import ResolvedEntity
 from libris.modules.bibliographic.application.service import BibliographicService, prepare_document
+from libris.modules.bibliographic.application.vocabulary_validation import (
+    vocabulary_registry_for_profile,
+)
 from libris.modules.bibliographic.domain.audit import AuditEventType
 from libris.modules.bibliographic.domain.errors import (
     CatalogCode,
@@ -198,7 +201,16 @@ class CatalogService(BibliographicService):
             references = await resolve_references(session, resource)
             graph = create_to_graph(resource, identity, profile=profile, references=references)
             projected = graph_to_read(graph, identity)
-            document = prepare_document(graph, identity.uri, profile)
+            vocabularies = await vocabulary_registry_for_profile(
+                session, profile, operation="create"
+            )
+            document = prepare_document(
+                graph,
+                identity.uri,
+                profile,
+                vocabularies=vocabularies,
+                operation="create",
+            )
             revision = Revision(
                 identity,
                 1,

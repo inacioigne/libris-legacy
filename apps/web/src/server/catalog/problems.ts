@@ -4,6 +4,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function diagnosticMessage(issue: Record<string, unknown>, locale: Locale): string {
+  const t = messages[locale];
+  const localizedMessages: Record<string, string> = {
+    "reference.vocabulary_mismatch": t.catalogVocabularyMismatch,
+    "reference.vocabulary_unverified": t.catalogVocabularyUnverified,
+    "reference.deprecated": t.catalogConceptDeprecated,
+    "reference.invalid": t.catalogConceptInvalid,
+    "reference.unverified": t.catalogConceptUnverified,
+    "reference.resolver_unavailable": t.catalogResolverUnavailable,
+  };
+  const localized = typeof issue.code === "string" ? localizedMessages[issue.code] : undefined;
+  const parameters = isRecord(issue.parameters) ? issue.parameters : {};
+  const replacement = typeof parameters.replacement_uri === "string" ? parameters.replacement_uri : undefined;
+  const message = localized ?? (typeof issue.message === "string" ? issue.message : "");
+  return replacement ? `${message} ${t.catalogVocabularySuccessor} ${replacement}` : message;
+}
+
 // Only the public diagnostic fields cross the server action boundary.
 export function workValidationFeedback(detail: unknown, locale: Locale): {
   message: string;
@@ -19,11 +36,14 @@ export function workValidationFeedback(detail: unknown, locale: Locale): {
   if (diagnostics.length) {
     for (const issue of diagnostics) {
       if (!isRecord(issue) || typeof issue.message !== "string") continue;
+      const message = diagnosticMessage(issue, locale);
       const fields = Array.isArray(issue.field_ids)
         ? issue.field_ids.filter((field): field is string => typeof field === "string")
         : [];
-      if (fields.length === 1 && /^\/(title|language|contribution|subject|note)(\/[a-z_0-9]+)*$/.test(fields[0])) fieldErrors[fields[0]] = issue.message;
-      issues.push(fields.length ? `${fields.join(", ")}: ${issue.message}` : issue.message);
+      const path = diagnosticPath(issue.path);
+      if (fields.length === 1 && /^\/(title|language|contribution|subject|note)(\/[a-z_0-9]+)*$/.test(fields[0])) fieldErrors[fields[0]] = message;
+      const context = [fields.join(", "), path].filter(Boolean).join(" · ");
+      issues.push(context ? `${context}: ${message}` : message);
     }
   }
   const requestId = typeof problem.request_id === "string"
@@ -68,10 +88,11 @@ export function instanceErrorFeedback(status: number, detail: unknown, locale: L
   if (typeof problem.code === "string") issues.push(problem.code);
   for (const issue of diagnostics) {
     if (!isRecord(issue) || typeof issue.message !== "string") continue;
+    const message = diagnosticMessage(issue, locale);
     const fields = Array.isArray(issue.field_ids) ? issue.field_ids.filter((field): field is string => typeof field === "string") : [];
-    if (fields.length === 1 && /^\/(instance_of|title|edition_statement|provision_activity|identified_by|extent|carrier|note)(\/[a-z_0-9]+)*$/.test(fields[0])) fieldErrors[fields[0]] = issue.message;
+    if (fields.length === 1 && /^\/(instance_of|title|edition_statement|provision_activity|identified_by|extent|carrier|note)(\/[a-z_0-9]+)*$/.test(fields[0])) fieldErrors[fields[0]] = message;
     const context = [issue.code, ...fields, diagnosticPath(issue.path)].filter(value => typeof value === "string").join(" · ");
-    issues.push(context ? `${context}: ${issue.message}` : issue.message);
+    issues.push(context ? `${context}: ${message}` : message);
   }
   return { ...feedback, issues: [...new Set(issues)], fieldErrors,
     message: status === 400 ? t.instanceBadRequest : status === 404 ? t.instanceNotFound : status === 422 ? t.instanceValidationError : feedback.message };
@@ -89,10 +110,11 @@ export function itemErrorFeedback(status: number, detail: unknown, locale: Local
   if (typeof problem.code === "string") issues.push(problem.code);
   for (const issue of diagnostics) {
     if (!isRecord(issue) || typeof issue.message !== "string") continue;
+    const message = diagnosticMessage(issue, locale);
     const fields = Array.isArray(issue.field_ids) ? issue.field_ids.filter((field): field is string => typeof field === "string") : [];
-    if (fields.length === 1 && /^\/(identified_by|custodial_history|note)(\/[a-z_0-9]+)*$/.test(fields[0])) fieldErrors[fields[0]] = issue.message;
+    if (fields.length === 1 && /^\/(identified_by|custodial_history|note)(\/[a-z_0-9]+)*$/.test(fields[0])) fieldErrors[fields[0]] = message;
     const context = [issue.code, ...fields, diagnosticPath(issue.path)].filter(value => typeof value === "string").join(" · ");
-    issues.push(context ? `${context}: ${issue.message}` : issue.message);
+    issues.push(context ? `${context}: ${message}` : message);
   }
   return { ...feedback, issues: [...new Set(issues)], fieldErrors,
     message: status === 400 ? t.instanceBadRequest : status === 404 ? t.itemNotFound : status === 422 ? t.itemValidationError : feedback.message };

@@ -1,5 +1,56 @@
 {
   "$defs": {
+    "VocabularyConceptEvidence": {
+      "additionalProperties": false,
+      "description": "Exact-URI status evidence pinned to one persisted vocabulary release.",
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "resolved",
+            "unverified",
+            "invalid",
+            "deprecated",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "replacement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replacement"
+        }
+      },
+      "required": [
+        "uri",
+        "status"
+      ],
+      "title": "VocabularyConceptEvidence",
+      "type": "object"
+    },
     "VocabularyDefinition": {
       "additionalProperties": false,
       "properties": {
@@ -8,7 +59,7 @@
           "type": "string"
         },
         "release": {
-          "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$",
+          "minLength": 1,
           "title": "Release",
           "type": "string"
         },
@@ -22,6 +73,14 @@
             "type": "string"
           },
           "title": "Members",
+          "type": "array"
+        },
+        "concepts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VocabularyConceptEvidence"
+          },
+          "title": "Concepts",
           "type": "array"
         },
         "complete": {

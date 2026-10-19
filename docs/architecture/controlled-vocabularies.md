@@ -194,9 +194,8 @@ explícita do chamador. Conjuntos parciais não são cópias locais autoritativa
 | SHACL local + suplemento #21 | Grafo concreto: nodeKind, cardinalidade, datatype, enum/classes aplicáveis | Pertença por vocabulary ou disponibilidade remota |
 | Provedor explícito | Evidência externa por URI e escopo | Alteração automática do catálogo |
 
-validate_resolved_profile permanece intacto. A pertença desta entrega é verificação
-suplementar **da aplicação**, não resultado SHACL. Não traduz vocabulary em novas
-shapes históricas. Futuro pacote local de evidência e shapes exigirá release explícita.
+validate_resolved_profile permanece intacto. A pertença é verificação suplementar
+**da aplicação**, não resultado SHACL. Não traduz vocabulary em novas shapes históricas.
 
 Diagnósticos usam o Diagnostic/CatalogCode estabelecido (#22), com field_ids,
 Warning/Violation e mensagens fixas, sem valores de usuário ou detalhes técnicos.
@@ -206,8 +205,7 @@ reference.resolver_unavailable. `resolution_diagnostics` converte falhas de cons
 em Warning; não são falhas do motor SHACL nem CatalogValidationResult(state="failed").
 Reutilizar `adapt_pydantic_error` para URI inválida/identificação insuficiente;
 `schema.value` distingue tipo incompatível; pertença negativa tem código próprio.
-Uma futura coordenação pode combinar estes Diagnostic com o relatório #22; rotas
-atuais e validação persistente histórica não adotam automaticamente a nova política.
+O suplemento integra agora os resultados catalográficos pelo contrato #22.
 
 ## JSON, JSON-LD e RDF
 
@@ -267,10 +265,44 @@ adicionais. Este trabalho não amplia namespaces/propriedades arbitrariamente,
 não oferece plugins ontológicos ou altera o mapeador dos cinco Read. Graph exportado
 continua preservando extensões existentes. #23 só estará completa com #25.
 
-Pendentes: catálogo institucional de fontes confiáveis, releases de vocabulários,
-domínio público/retenção, aprovação dos TTLs, conectores, armazenamento de evidência,
-API/editor e revisões de autoridades. Homologação humana não é substituída pelos
-schemas/testes. Não há reconciliação automática, MARC, CRUD ou migração definitiva.
+Pendentes: governança institucional de fontes/releases, política de retenção,
+aprovação dos TTLs e conectores de rede. Homologação humana não é substituída pelos
+schemas/testes. Não há reconciliação automática, MARC, CRUD de autoridades ou
+migração bibliográfica definitiva.
+
+## Integração de pertença na catalogação — M08.05
+
+A release imutável
+[`monograph-v1.2.json`](../../apps/api/src/libris/modules/bibliographic/resources/monograph-v1.2.json)
+reutiliza os descritores e shapes institucionais 1.1 e ativa a política suplementar
+de pertença nas novas criações e pré-validações. A release 1.1 e seus registros não
+são reescritos nem reavaliados ao publicar. Em PATCH de registro 1.1, somente URIs
+adicionadas/alteradas passam pela nova política; valores preservados e removidos não
+são reinterpretados. Identidade, URI RDF e DTO `ResourceReference` v1 permanecem
+inalterados.
+
+Cada operação lê, na própria transação (ou na transação explicitamente somente leitura
+da pré-validação), a release ativa persistida dos vocabulários IRI declarados pelo
+perfil. Não há escolha de release pelo cliente nem consulta síncrona a provedor.
+Uma ocorrência exata em release é pertença positiva. A ausência em release completa
+gera `reference.vocabulary_mismatch`/Violation; a ausência em release parcial, a
+release ausente e a evidência não conclusiva geram Warning. `deprecated` informa
+sucessor quando disponível sem trocar URI. Falhas temporárias permanecem fora das
+releases imutáveis e não apagam a evidência confiável anterior; estado
+`unavailable` também é Warning, inclusive na publicação. A publicação valida o
+snapshot selecionado com a evidência ativa no mesmo contexto transacional, sem
+alterar revisões publicadas automaticamente.
+
+Os diagnósticos suplementares incluem `field_ids` no formato BFF (por exemplo,
+`/language`) e o caminho RDF IRI; o BFF os associa ao campo e localiza as mensagens
+em pt/en. SHACL e as regras RDF continuam sendo avaliados separadamente. A política
+não importa labels ou descrições de terceiros para o grafo proprietário e não
+converte timeout em incompatibilidade comprovada.
+
+Testes abrangem identidade exata, release completa/parcial, deprecated/sucessor,
+indisponibilidade, PATCH sem revalidar dados preservados e a barreira de publicação.
+O fluxo HTTP com PostgreSQL descartável comprova a integração operacional; a
+verificação não homologa Keycloak nem fontes remotas.
 
 ## Verificação
 

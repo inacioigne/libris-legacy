@@ -95,7 +95,7 @@ test("Instance list uses supported filters and prevalidation never calls a persi
   assert.equal(url.searchParams.get("editorial_state"), "draft");
   await validateInstance({ instance_of: richInstance.instance_of }, options);
   assert.equal(new URL(requests[1].url).pathname, "/api/v1/catalog/instances/validation");
-  assert.equal((await requests[1].json()).profile_release, "urn:libris:profile:monograph:v1:1");
+  assert.equal((await requests[1].json()).profile_release, "urn:libris:profile:monograph:v1:2");
 });
 
 test("Work resolution uses exact stored identity, never a title, ISBN or parsed URI suffix", async t => {

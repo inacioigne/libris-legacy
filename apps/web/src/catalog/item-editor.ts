@@ -9,7 +9,7 @@ export const itemFields = ["identified_by", "custodial_history", "note"] as cons
 export type ItemField = typeof itemFields[number];
 export type ItemDraft = Required<Pick<ItemCreate, ItemField>> & { item_of: ItemCreate["item_of"] | null };
 export type ItemChoices = Partial<Record<ItemField, "local" | "remote">>;
-export const itemProfile = "urn:libris:profile:monograph:v1:1";
+export const itemProfile = "urn:libris:profile:monograph:v1:2";
 
 export function draftFromItem(item?: ItemRead | null): ItemDraft {
   return structuredClone({ item_of: item?.item_of ?? null, identified_by: item?.identified_by ?? [],

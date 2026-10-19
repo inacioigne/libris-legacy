@@ -123,5 +123,5 @@ test("Item list uses supported filters and prevalidation never calls a persisten
   assert.equal(url.searchParams.get("editorial_state"), "draft");
   await validateItem({ item_of: richItem.item_of, identified_by: richItem.identified_by }, options);
   assert.equal(new URL(requests[1].url).pathname, "/api/v1/catalog/items/validation");
-  assert.equal((await requests[1].json()).profile_release, "urn:libris:profile:monograph:v1:1");
+  assert.equal((await requests[1].json()).profile_release, "urn:libris:profile:monograph:v1:2");
 });

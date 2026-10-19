@@ -30,3 +30,26 @@ test("missing or malformed diagnostics retain a localized fallback", () => {
     assert.match(feedback.message, /A API rejeitou/);
   }
 });
+
+test("membership, availability and deprecation diagnostics are localized without URI replacement", () => {
+  const issue = {
+    code: "reference.deprecated",
+    message: "Mensagem padrão.",
+    field_ids: ["/language"],
+    path: { kind: "iri", iri: "http://id.loc.gov/ontologies/bibframe/language" },
+    parameters: { replacement_uri: "http://id.loc.gov/vocabulary/languages/eng" },
+  };
+  const pt = workValidationFeedback({ issues: [issue] }, "pt");
+  const en = workValidationFeedback({ issues: [issue] }, "en");
+  assert.match(pt.issues[0], /descontinuado/);
+  assert.match(pt.issues[0], /Sucessor sugerido \(não aplicado\)/);
+  assert.match(pt.issues[0], /languages\/eng/);
+  assert.match(en.issues[0], /deprecated/);
+  assert.match(en.issues[0], /Suggested successor \(not applied\)/);
+  assert.equal(pt.fieldErrors["/language"], pt.issues[0].split(": ").slice(1).join(": "));
+
+  const mismatch = workValidationFeedback({
+    issues: [{ code: "reference.vocabulary_mismatch", message: "default" }],
+  }, "en");
+  assert.match(mismatch.issues[0], /not a member/);
+});

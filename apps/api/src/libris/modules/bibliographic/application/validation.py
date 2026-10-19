@@ -6,7 +6,14 @@ from typing import Literal
 from rdflib import Graph
 
 from libris.core.correlation import request_id_context
-from libris.modules.bibliographic.application.diagnostics import CatalogValidationResult, Diagnostic
+from libris.modules.bibliographic.application.diagnostics import (
+    CatalogValidationResult,
+    Diagnostic,
+    ordered,
+)
+from libris.modules.bibliographic.application.vocabulary_validation import (
+    validate_profile_vocabulary_membership,
+)
 from libris.modules.bibliographic.domain.errors import CatalogCode
 from libris.modules.bibliographic.domain.profile_contract import (
     ProfileValidationContext,
@@ -14,6 +21,7 @@ from libris.modules.bibliographic.domain.profile_contract import (
 )
 from libris.modules.bibliographic.domain.profile_registry import ProfileError
 from libris.modules.bibliographic.domain.profiles import CatalogProfile
+from libris.modules.bibliographic.domain.vocabularies import VocabularyRegistry
 from libris.modules.bibliographic.infrastructure.diagnostics import adapt_report
 from libris.modules.bibliographic.infrastructure.profiles import (
     LEGACY_PROFILES,
@@ -34,6 +42,11 @@ def validate_catalog(
     *,
     context: Literal["snapshot", "composed"] = "snapshot",
     request_id: str | None = None,
+    vocabularies: VocabularyRegistry | None = None,
+    operation: Literal["prevalidation", "create", "update", "restore", "publish"] = (
+        "prevalidation"
+    ),
+    previous_graph: Graph | None = None,
 ) -> CatalogValidationResult:
     """ResolvedProfile must come from the trusted registry, never a request body."""
     descriptor: CatalogProfile | ResolvedProfile
@@ -80,4 +93,23 @@ def validate_catalog(
                 Diagnostic(code=code, message="Validação indisponível.", category="technical"),
             ),
         )
-    return adapt_report(report, descriptor, graph, context=context, request_id=correlation)
+    result = adapt_report(report, descriptor, graph, context=context, request_id=correlation)
+    if vocabularies is None:
+        return result
+    membership_issues = validate_profile_vocabulary_membership(
+        graph,
+        descriptor,
+        vocabularies,
+        operation=operation,
+        previous_graph=previous_graph,
+    )
+    if not membership_issues:
+        return result
+    issues = ordered((*result.issues, *membership_issues))
+    return result.model_copy(
+        update={
+            "conforms": result.conforms is True
+            and not any(issue.severity == "Violation" for issue in membership_issues),
+            "issues": issues,
+        }
+    )

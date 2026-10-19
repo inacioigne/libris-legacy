@@ -14,6 +14,9 @@ from libris.modules.bibliographic.domain.profile_contract import (
     ResolvedProfile,
 )
 from libris.modules.bibliographic.domain.profile_registry import ProfileError
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+)
 from libris.modules.bibliographic.infrastructure.rdf import check_graph
 
 PROFILE_ID = "urn:libris:profile:monograph:v1"
@@ -23,6 +26,7 @@ AUTHORITY_PROFILE_ID = "urn:libris:profile:authority:v1"
 LEGACY_SHAPE_RELEASES = {
     PROFILE_ID: ("urn:libris:shapes:experimental", "1.0"),
     INSTITUTIONAL_PROFILE_ID: ("urn:libris:shapes:institutional", "1.1"),
+    CONTROLLED_VOCABULARY_PROFILE_ID: ("urn:libris:shapes:institutional", "1.1"),
     AUTHORITY_PROFILE_ID: ("urn:libris:shapes:institutional", "1.1"),
 }
 SHAPE_RELEASE_FILES = {

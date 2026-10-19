@@ -31,6 +31,9 @@ from libris.modules.bibliographic.application.validation import validate_catalog
 from libris.modules.bibliographic.domain.errors import CatalogError
 from libris.modules.bibliographic.domain.models import ResourceIdentity
 from libris.modules.bibliographic.domain.relationships import EntityType
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+)
 from libris.modules.bibliographic.infrastructure.rdf import (
     BF,
     new_graph,
@@ -218,7 +221,10 @@ def test_profiles_are_fixed_read_only_and_no_filesystem_leaks() -> None:
             assert first.status_code == 200, first.text
             assert first.json() == (await client.get("/api/v1/catalog/profiles")).json()
             entries = first.json()
-            assert len(entries) == 14
+            assert len(entries) == 15
+            assert CONTROLLED_VOCABULARY_PROFILE_ID in {
+                entry["profile"]["id"] for entry in entries
+            }
             assert {entry["profile"]["status"] for entry in entries} == {"candidate", "draft"}
             for entry in entries:
                 assert entry["configured"] is True

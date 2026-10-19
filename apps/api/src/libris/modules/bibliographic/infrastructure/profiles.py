@@ -21,10 +21,14 @@ from libris.modules.bibliographic.domain.profile_registry import (
     profile_fingerprint,
 )
 from libris.modules.bibliographic.domain.profiles import CatalogProfile
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+)
 
 LEGACY_PROFILES = {
     "urn:libris:profile:monograph:v1": "monograph-v1.json",
     "urn:libris:profile:monograph:v1:1": "monograph-v1.1.json",
+    CONTROLLED_VOCABULARY_PROFILE_ID: "monograph-v1.2.json",
     "urn:libris:profile:authority:v1": "authority-v1.json",
 }
 

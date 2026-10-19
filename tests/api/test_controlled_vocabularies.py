@@ -12,7 +12,7 @@ from uuid import UUID
 import pytest
 from fastapi import FastAPI
 from pydantic import ValidationError
-from rdflib import Literal, URIRef
+from rdflib import Graph, Literal, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import OWL, RDF, SKOS, XSD
 
@@ -39,6 +39,7 @@ from libris.modules.bibliographic.application.vocabulary_resolution import (
 from libris.modules.bibliographic.application.vocabulary_validation import (
     resolution_diagnostics,
     validate_catalog_value,
+    validate_profile_vocabulary_membership,
 )
 from libris.modules.bibliographic.domain.errors import CatalogCode
 from libris.modules.bibliographic.domain.models import ResourceIdentity
@@ -50,10 +51,15 @@ from libris.modules.bibliographic.domain.profile_contract import (
     ReferenceValue,
 )
 from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+    VocabularyConceptEvidence,
     VocabularyDefinition,
     VocabularyRegistry,
 )
-from libris.modules.bibliographic.infrastructure.profiles import load_profile_registry
+from libris.modules.bibliographic.infrastructure.profiles import (
+    load_legacy_profile,
+    load_profile_registry,
+)
 from libris.modules.bibliographic.infrastructure.rdf import BF, RdfDocumentError
 from libris.modules.bibliographic.infrastructure.serialization import (
     parse_representation,
@@ -274,6 +280,171 @@ def test_membership_exact_uri_not_labels_prefix_or_payload_vocabulary() -> None:
     issues = validate_catalog_value(value, field(), vocabularies=evidence(complete=False))
     assert [issue.code for issue in issues] == [CatalogCode.VOCABULARY_UNVERIFIED]
     assert issues[0].severity == "Warning"
+
+
+def test_profile_membership_uses_exact_uri_and_reports_field_path() -> None:
+    graph = Graph()
+    graph.add((URIRef(ROOT_URI), RDF.type, BF.Work))
+    graph.add((URIRef(ROOT_URI), BF.language, URIRef(URI)))
+    profile = load_legacy_profile(CONTROLLED_VOCABULARY_PROFILE_ID)
+
+    def registry(*, complete: bool, members: tuple[str, ...] = ()) -> VocabularyRegistry:
+        return VocabularyRegistry(
+            vocabularies=(
+                VocabularyDefinition(
+                    uri=VOCABULARY,
+                    release="test-release",
+                    source=SOURCE,
+                    members=members,
+                    complete=complete,
+                ),
+            )
+        )
+
+    accepted = validate_profile_vocabulary_membership(
+        graph, profile, registry(complete=True, members=(URI,)), operation="prevalidation"
+    )
+    assert accepted == ()
+
+    mismatch = validate_profile_vocabulary_membership(
+        graph, profile, registry(complete=True), operation="prevalidation"
+    )
+    assert len(mismatch) == 1
+    assert mismatch[0].code == CatalogCode.VOCABULARY_MISMATCH
+    assert mismatch[0].severity == "Violation"
+    assert mismatch[0].field_ids == ("/language",)
+    assert mismatch[0].path is not None and mismatch[0].path.iri == str(BF.language)
+    assert mismatch[0].value == URI
+
+    partial = validate_profile_vocabulary_membership(
+        graph, profile, registry(complete=False), operation="prevalidation"
+    )
+    membership_warnings = [
+        issue for issue in partial if issue.code == CatalogCode.VOCABULARY_UNVERIFIED
+    ]
+    assert len(membership_warnings) == 1
+    assert membership_warnings[0].severity == "Warning"
+    assert all(issue.severity == "Warning" for issue in partial)
+
+
+def test_profile_membership_deprecated_and_unavailable_evidence_are_non_destructive() -> None:
+    graph = Graph()
+    graph.add((URIRef(ROOT_URI), RDF.type, BF.Work))
+    graph.add((URIRef(ROOT_URI), BF.language, URIRef(URI)))
+    profile = load_legacy_profile(CONTROLLED_VOCABULARY_PROFILE_ID)
+    replacement = URI + "-replacement"
+    evidence = VocabularyConceptEvidence(
+        uri=URI,
+        status="deprecated",
+        source=SOURCE,
+        replacement=replacement,
+    )
+    deprecated = VocabularyRegistry(
+        vocabularies=(
+            VocabularyDefinition(
+                uri=VOCABULARY,
+                release="test-release",
+                source=SOURCE,
+                concepts=(evidence,),
+                complete=True,
+            ),
+        )
+    )
+    issues = validate_profile_vocabulary_membership(
+        graph, profile, deprecated, operation="publish"
+    )
+    assert len(issues) == 1
+    assert issues[0].code == CatalogCode.REFERENCE_DEPRECATED
+    assert issues[0].severity == "Warning"
+    assert issues[0].value == URI
+    assert issues[0].parameters["replacement_uri"] == replacement
+
+    unavailable = VocabularyRegistry(
+        vocabularies=(
+            VocabularyDefinition(
+                uri=VOCABULARY,
+                release="test-release",
+                source=SOURCE,
+                concepts=(
+                    VocabularyConceptEvidence(uri=URI, status="unavailable"),
+                ),
+                complete=True,
+            ),
+        )
+    )
+    warnings = validate_profile_vocabulary_membership(
+        graph, profile, unavailable, operation="publish"
+    )
+    assert warnings
+    assert all(issue.severity == "Warning" for issue in warnings)
+
+
+def test_profile_patch_membership_only_checks_new_uri_values() -> None:
+    graph = Graph()
+    graph.add((URIRef(ROOT_URI), RDF.type, BF.Work))
+    graph.add((URIRef(ROOT_URI), BF.language, URIRef(URI)))
+    previous = Graph()
+    previous.add((URIRef(ROOT_URI), RDF.type, BF.Work))
+    previous.add((URIRef(ROOT_URI), BF.language, URIRef(URI)))
+    registry = VocabularyRegistry(
+        vocabularies=(
+            VocabularyDefinition(
+                uri=VOCABULARY,
+                release="test-release",
+                source=SOURCE,
+                complete=True,
+            ),
+        )
+    )
+    profile = load_legacy_profile(CONTROLLED_VOCABULARY_PROFILE_ID)
+    assert not validate_profile_vocabulary_membership(
+        graph,
+        profile,
+        registry,
+        operation="update",
+        previous_graph=previous,
+    )
+
+
+def test_profile_release_policy_preserves_v11_and_checks_only_touched_values() -> None:
+    legacy = load_legacy_profile("urn:libris:profile:monograph:v1:1")
+    current = load_legacy_profile(CONTROLLED_VOCABULARY_PROFILE_ID)
+    assert legacy.release == "1.1"
+    assert legacy.id == "urn:libris:profile:monograph:v1:1"
+    assert current.release == "1.2"
+    assert current.id == CONTROLLED_VOCABULARY_PROFILE_ID
+    assert legacy.resources == current.resources
+
+    graph = Graph()
+    graph.add((URIRef(ROOT_URI), RDF.type, BF.Work))
+    graph.add((URIRef(ROOT_URI), BF.language, URIRef(URI)))
+    graph.add((URIRef(ROOT_URI), BF.language, URIRef(URI + "-new")))
+    previous = Graph()
+    previous.add((URIRef(ROOT_URI), RDF.type, BF.Work))
+    previous.add((URIRef(ROOT_URI), BF.language, URIRef(URI)))
+    registry = VocabularyRegistry(
+        vocabularies=(
+            VocabularyDefinition(
+                uri=VOCABULARY,
+                release="test-release",
+                source=SOURCE,
+                complete=True,
+            ),
+        )
+    )
+    issues = validate_profile_vocabulary_membership(
+        graph,
+        legacy,
+        registry,
+        operation="update",
+        previous_graph=previous,
+    )
+    assert len(issues) == 1
+    assert issues[0].code == CatalogCode.VOCABULARY_MISMATCH
+    assert issues[0].value == URI + "-new"
+    assert validate_profile_vocabulary_membership(
+        graph, legacy, registry, operation="publish"
+    ) == ()
 
 
 def test_wrong_type_and_explicit_profile_enum() -> None:

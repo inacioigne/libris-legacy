@@ -16,6 +16,9 @@ from libris.modules.bibliographic.api.schemas.relationships import DirectLink, R
 from libris.modules.bibliographic.application.audit import audit_actor, editorial_event
 from libris.modules.bibliographic.application.editorial import PublicationContext
 from libris.modules.bibliographic.application.relationships import ResolvedEntity, validate_cycles
+from libris.modules.bibliographic.application.vocabulary_validation import (
+    vocabulary_registry_for_profile,
+)
 from libris.modules.bibliographic.domain.editorial import EditorialRecord, PreparedTransition
 from libris.modules.bibliographic.domain.errors import CatalogCode, CatalogError
 from libris.modules.bibliographic.domain.models import Provenance
@@ -200,7 +203,10 @@ class PostgresEditorialTransaction:
                     )
                     pending.append(target)
         validate_cycles(closure)
-        return PublicationContext(selected, graph, relationships, resolver)
+        vocabularies = await vocabulary_registry_for_profile(
+            self.session, selected.profile, operation="publish"
+        )
+        return PublicationContext(selected, graph, relationships, resolver, vocabularies)
 
     async def compare_and_set(self, change: PreparedTransition) -> None:
         # Recheck persisted content CAS before the conditional state UPDATE.

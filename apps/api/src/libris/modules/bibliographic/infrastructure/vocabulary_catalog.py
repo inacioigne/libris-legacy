@@ -326,6 +326,15 @@ class VocabularyConceptDetailRow:
     source: VocabularySourceRecord
 
 
+@dataclass(frozen=True)
+class VocabularyMembershipSnapshot:
+    vocabulary_uri: str
+    release_key: str
+    source_uri: str
+    completeness: str
+    concepts: tuple[tuple[str, str, str | None, str | None], ...]
+
+
 class VocabularyCatalogRepository:
     """Persistence primitives; transaction ownership remains with the application."""
 
@@ -645,6 +654,69 @@ class VocabularyCatalogRepository:
             )
         )
         return rows.one_or_none()
+
+    async def membership_snapshots(
+        self, session: AsyncSession, vocabulary_uris: tuple[str, ...]
+    ) -> tuple[VocabularyMembershipSnapshot, ...]:
+        if not vocabulary_uris:
+            return ()
+        rows = await session.execute(
+            select(
+                VocabularyRecord.uri,
+                VocabularyReleaseRecord.release_key,
+                VocabularyReleaseRecord.source_uri,
+                VocabularyReleaseRecord.completeness,
+                VocabularyReleaseConceptRecord.concept_uri,
+                VocabularyReleaseConceptRecord.status,
+                VocabularyReleaseConceptRecord.source_uri,
+                VocabularyReleaseConceptRecord.replacement_uri,
+            )
+            .join(
+                VocabularyReleaseRecord,
+                VocabularyReleaseRecord.vocabulary_id == VocabularyRecord.id,
+            )
+            .outerjoin(
+                VocabularyReleaseConceptRecord,
+                VocabularyReleaseConceptRecord.release_id == VocabularyReleaseRecord.id,
+            )
+            .where(
+                VocabularyRecord.uri.in_(vocabulary_uris),
+                VocabularyRecord.status == "active",
+                VocabularyReleaseRecord.status == "active",
+            )
+            .order_by(VocabularyRecord.uri, VocabularyReleaseConceptRecord.concept_uri)
+        )
+        grouped: dict[
+            tuple[str, str, str, str],
+            list[tuple[str, str, str | None, str | None]],
+        ] = {}
+        for (
+            vocabulary_uri,
+            release_key,
+            source_uri,
+            completeness,
+            concept_uri,
+            status,
+            concept_source_uri,
+            replacement_uri,
+        ) in rows:
+            key = (vocabulary_uri, release_key, source_uri, completeness)
+            grouped.setdefault(key, [])
+            if concept_uri is not None and status is not None:
+                grouped[key].append(
+                    (concept_uri, status, concept_source_uri, replacement_uri)
+                )
+        return tuple(
+            VocabularyMembershipSnapshot(
+                vocabulary_uri=vocabulary_uri,
+                release_key=release_key,
+                source_uri=source_uri,
+                completeness=completeness,
+                concepts=tuple(concepts),
+            )
+            for (vocabulary_uri, release_key, source_uri, completeness), concepts
+            in sorted(grouped.items())
+        )
 
     async def vocabulary_by_uri(self, session: AsyncSession, uri: str) -> VocabularyRecord | None:
         rows = await session.scalars(select(VocabularyRecord).where(VocabularyRecord.uri == uri))

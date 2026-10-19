@@ -36,6 +36,9 @@ from libris.modules.bibliographic.api.schemas import (
 )
 from libris.modules.bibliographic.application.catalog import CatalogService
 from libris.modules.bibliographic.domain.models import ResourceIdentity
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+)
 from libris.modules.bibliographic.infrastructure.validation import (
     AUTHORITY_PROFILE_ID,
     INSTITUTIONAL_PROFILE_ID,
@@ -68,7 +71,7 @@ async def create_work(
     view = await service.create_resource(
         payload,
         ResourceIdentity.create(base_uri),
-        INSTITUTIONAL_PROFILE_ID,
+        CONTROLLED_VOCABULARY_PROFILE_ID,
         context,
     )
     set_representation_headers(response, view)
@@ -115,7 +118,7 @@ async def create_instance(
     view = await service.create_resource(
         payload,
         ResourceIdentity.create(base_uri),
-        INSTITUTIONAL_PROFILE_ID,
+        CONTROLLED_VOCABULARY_PROFILE_ID,
         context,
     )
     set_representation_headers(response, view)
@@ -164,7 +167,7 @@ async def create_item(
     view = await service.create_resource(
         payload,
         ResourceIdentity.create(base_uri),
-        INSTITUTIONAL_PROFILE_ID,
+        CONTROLLED_VOCABULARY_PROFILE_ID,
         context,
     )
     set_representation_headers(response, view)

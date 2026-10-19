@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
 
 from rdflib import Graph, URIRef
@@ -7,7 +8,15 @@ from rdflib.namespace import RDF
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from libris.modules.bibliographic.application.audit import audit_actor, content_event
-from libris.modules.bibliographic.application.diagnostics import CatalogValidationRejected
+from libris.modules.bibliographic.application.diagnostics import (
+    CatalogValidationRejected,
+    ordered,
+)
+from libris.modules.bibliographic.application.vocabulary_validation import (
+    profile_uses_membership_policy,
+    validate_profile_vocabulary_membership,
+    vocabulary_registry_for_profile,
+)
 from libris.modules.bibliographic.domain.audit import ActorType, AuditEventType, ExecutionActor
 from libris.modules.bibliographic.domain.editorial import prepare_content_revision
 from libris.modules.bibliographic.domain.errors import CatalogCode, CatalogError
@@ -18,6 +27,10 @@ from libris.modules.bibliographic.domain.models import (
     StaleRevisionError,
 )
 from libris.modules.bibliographic.domain.profile_registry import ProfileError
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+    VocabularyRegistry,
+)
 from libris.modules.bibliographic.infrastructure.audit import AuditStore
 from libris.modules.bibliographic.infrastructure.diagnostics import adapt_report
 from libris.modules.bibliographic.infrastructure.editorial import EditorialStore, write_gate
@@ -45,8 +58,21 @@ from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor
 
 
-def prepare_document(graph: Graph, uri: str, profile: str = PROFILE_ID) -> list[dict[str, object]]:
-    if profile not in (PROFILE_ID, INSTITUTIONAL_PROFILE_ID, AUTHORITY_PROFILE_ID):
+def prepare_document(
+    graph: Graph,
+    uri: str,
+    profile: str = PROFILE_ID,
+    *,
+    vocabularies: VocabularyRegistry | None = None,
+    operation: Literal["prevalidation", "create", "update", "restore", "publish"] = "create",
+    previous_graph: Graph | None = None,
+) -> list[dict[str, object]]:
+    if profile not in (
+        PROFILE_ID,
+        INSTITUTIONAL_PROFILE_ID,
+        CONTROLLED_VOCABULARY_PROFILE_ID,
+        AUTHORITY_PROFILE_ID,
+    ):
         raise ProfileError("unknown_profile", "Perfil local desconhecido.")
     if profile == PROFILE_ID:
         if not any(
@@ -59,15 +85,35 @@ def prepare_document(graph: Graph, uri: str, profile: str = PROFILE_ID) -> list[
     else:
         kind = check_snapshot(graph, URIRef(uri))
         bibliographic = kind in (BF.Work, BF.Instance, BF.Item)
-        if (profile == INSTITUTIONAL_PROFILE_ID and not bibliographic) or (
+        if (
+            profile in {INSTITUTIONAL_PROFILE_ID, CONTROLLED_VOCABULARY_PROFILE_ID}
+            and not bibliographic
+        ) or (
             profile == AUTHORITY_PROFILE_ID and bibliographic
         ):
             raise CatalogError(
                 CatalogCode.PROFILE_INCOMPATIBLE, "Tipo da raiz incompatível com o perfil."
             )
-    report = validate_profile(graph, profile)
-    if not report.conforms:
-        raise CatalogValidationRejected(adapt_report(report, load_legacy_profile(profile), graph))
+    descriptor = load_legacy_profile(profile)
+    report = adapt_report(validate_profile(graph, profile), descriptor, graph)
+    if vocabularies is not None:
+        membership_issues = validate_profile_vocabulary_membership(
+            graph,
+            descriptor,
+            vocabularies,
+            operation=operation,
+            previous_graph=previous_graph,
+        )
+        if membership_issues:
+            report = report.model_copy(
+                update={
+                    "conforms": report.conforms is True
+                    and not any(issue.severity == "Violation" for issue in membership_issues),
+                    "issues": ordered((*report.issues, *membership_issues)),
+                }
+            )
+    if report.conforms is not True:
+        raise CatalogValidationRejected(report)
     document = serialize_document(graph, "json-ld")
     if any("\x00" in str(term) for triple in graph for term in triple):
         raise CatalogError(
@@ -168,7 +214,6 @@ class BibliographicService:
         context = self._context(context, actor, execution_actor)
         self._require_content(context, profile, create=True, resource_id=identity.internal_id)
         actor_id, actor_type = self._audit_context(context)
-        document = prepare_document(graph, identity.uri, profile)
         revision = Revision(
             identity,
             1,
@@ -177,8 +222,28 @@ class BibliographicService:
             profile,
             actor_id,
         )
-        async with self.sessions() as session, session.begin():
-            await self._create(session, revision, document, actor_type)
+        if profile_uses_membership_policy(profile, "create"):
+            async with self.sessions() as session, session.begin():
+                vocabularies = await vocabulary_registry_for_profile(
+                    session, profile, operation="create"
+                )
+                document = prepare_document(
+                    graph,
+                    identity.uri,
+                    profile,
+                    vocabularies=vocabularies,
+                    operation="create",
+                )
+                await self._create(session, revision, document, actor_type)
+        else:
+            document = prepare_document(
+                graph,
+                identity.uri,
+                profile,
+                operation="create",
+            )
+            async with self.sessions() as session, session.begin():
+                await self._create(session, revision, document, actor_type)
         return revision
 
     async def _create(
@@ -266,9 +331,22 @@ class BibliographicService:
         if expected_editorial_version is not None:
             state.require_expected(expected_editorial_version, expected_revision)
         uri = await self.store.advance(session, identifier, expected_revision)
-        document = prepare_document(graph, uri, previous.profile)
+        prior_graph = parse_document(json.dumps(prior_document), "json-ld")
+        operation: Literal["restore", "update"] = (
+            "restore" if event_type == AuditEventType.RESTORED else "update"
+        )
+        vocabularies = await vocabulary_registry_for_profile(
+            session, previous.profile, operation=operation
+        )
+        document = prepare_document(
+            graph,
+            uri,
+            previous.profile,
+            vocabularies=vocabularies,
+            operation=operation,
+            previous_graph=None if event_type == AuditEventType.RESTORED else prior_graph,
+        )
         if previous.profile != PROFILE_ID:
-            prior_graph = parse_document(json.dumps(prior_document), "json-ld")
             if check_snapshot(prior_graph, URIRef(uri)) != check_snapshot(graph, URIRef(uri)):
                 raise CatalogError(
                     CatalogCode.IDENTITY_INVALID,

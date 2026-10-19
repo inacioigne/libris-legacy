@@ -6,15 +6,17 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal as TypingLiteral
 from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from rdflib import Literal, URIRef
+from rdflib import Graph, Literal, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import DCTERMS
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from test_audit_postgres import actor
 from test_editorial_postgres import publish, state, transition
@@ -23,13 +25,37 @@ from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.api.dependencies import get_catalog_service
 from libris.modules.bibliographic.application.catalog import CatalogService
+from libris.modules.bibliographic.application.lc_languages import (
+    LC_LANGUAGES_VOCABULARY,
+    LC_LANGUAGES_XML,
+    LC_PROVIDER,
+)
+from libris.modules.bibliographic.application.vocabulary_catalog import (
+    ImportedConcept,
+    VocabularyCatalogService,
+    VocabularyImport,
+    VocabularyInput,
+    VocabularyReleaseInput,
+    VocabularySourceInput,
+)
 from libris.modules.bibliographic.domain.audit import AuditEvent
 from libris.modules.bibliographic.domain.editorial import EditorialScope, EditorialState
 from libris.modules.bibliographic.domain.models import Provenance, StaleRevisionError
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+    VocabularyRegistry,
+)
 from libris.modules.bibliographic.infrastructure.persistence import (
     SemanticRevision,
 )
 from libris.modules.bibliographic.infrastructure.serialization import graph_to_read
+from libris.modules.bibliographic.infrastructure.vocabulary_catalog import (
+    VocabularyIdentifierRecord,
+    VocabularyImportRecord,
+    VocabularyLabelRecord,
+    VocabularyReleaseConceptRecord,
+    VocabularyReleaseRecord,
+)
 from libris.modules.identity.api.dependencies import get_current_actor
 
 pytestmark = pytest.mark.integration
@@ -172,6 +198,156 @@ def test_http_rejections_leave_persistence_unchanged(collection: str) -> None:
             assert response.status_code == 400
             assert await state(service.sessions, identifier) == before
             assert (await client.post(f"/api/v1/catalog/{collection}", json={})).status_code == 422
+
+    asyncio.run(scenario())
+
+
+def test_local_vocabulary_membership_gates_prevalidation_create_and_patch() -> None:
+    async def scenario() -> None:
+        async with client_context() as (client, service):
+            now = datetime.now(UTC)
+            vocabulary_uri = LC_LANGUAGES_VOCABULARY
+            source_uri = LC_LANGUAGES_XML
+            provider_uri = LC_PROVIDER
+            catalog = VocabularyCatalogService(service.sessions)
+            vocabulary = await catalog.register(
+                VocabularySourceInput(
+                    key="lc-languages-integration",
+                    provider_uri=provider_uri,
+                    source_uri=source_uri,
+                    provenance={"test": "issue-71"},
+                ),
+                VocabularyInput(uri=vocabulary_uri, status="active"),
+                now=now,
+            )
+            imported = ImportedConcept.model_validate(
+                {
+                    "concept": {
+                        "kind": "controlled_concept",
+                        "uri": f"{vocabulary_uri}eng",
+                        "vocabulary": vocabulary_uri,
+                        "label": [{"value": "English", "language": "en"}],
+                        "notation": "eng",
+                        "source": source_uri,
+                        "status": "resolved",
+                    }
+                }
+            )
+            candidate = await catalog.import_release(
+                vocabulary.id,
+                VocabularyImport(
+                    idempotency_key=f"issue71-{uuid4()}",
+                    release=VocabularyReleaseInput(
+                        release_key=f"issue71-{uuid4()}",
+                        source_version="fixture-1",
+                        source_uri=source_uri,
+                        digest="f" * 64,
+                        completeness="complete",
+                        retrieved_at=now,
+                    ),
+                    concepts=(imported,),
+                ),
+                now=now,
+            )
+            async with service.sessions() as session:
+                previous_active = await session.scalar(
+                    select(VocabularyReleaseRecord).where(
+                        VocabularyReleaseRecord.vocabulary_id == vocabulary.id,
+                        VocabularyReleaseRecord.status == "active",
+                    )
+                )
+            await catalog.activate_release(
+                vocabulary.id,
+                candidate.id,
+                expected_active_release_id=previous_active.id if previous_active else None,
+            )
+
+            try:
+                rejected_payload = payload("works")
+                validation = await client.post(
+                    "/api/v1/catalog/works/validation",
+                    json={
+                        "kind": "dto",
+                        "profile_release": CONTROLLED_VOCABULARY_PROFILE_ID,
+                        "resource": rejected_payload,
+                    },
+                )
+                assert validation.status_code == 200, validation.text
+                assert validation.json()["conforms"] is False
+                diagnostic = next(
+                    issue
+                    for issue in validation.json()["issues"]
+                    if issue["code"] == "reference.vocabulary_mismatch"
+                )
+                assert diagnostic["field_ids"] == ["/language"]
+                assert diagnostic["path"]["iri"] == (
+                    "http://id.loc.gov/ontologies/bibframe/language"
+                )
+
+                rejected = await client.post("/api/v1/catalog/works", json=rejected_payload)
+                assert rejected.status_code == 422, rejected.text
+                assert rejected.json()["validation"]["issues"][0]["code"] == (
+                    "reference.vocabulary_mismatch"
+                )
+
+                accepted_payload = payload("works")
+                accepted_payload["language"] = [{"uri": f"{vocabulary_uri}eng"}]
+                created = await client.post("/api/v1/catalog/works", json=accepted_payload)
+                assert created.status_code == 201, created.text
+                identifier = UUID(created.json()["internal_id"])
+                before = await state(service.sessions, identifier)
+                rejected_patch = await client.patch(
+                    created.headers["location"],
+                    json={"language": [{"uri": f"{vocabulary_uri}por"}]},
+                    headers={"If-Match": created.headers["etag"]},
+                )
+                assert rejected_patch.status_code == 422, rejected_patch.text
+                after = await state(service.sessions, identifier)
+                assert after.current.number == before.current.number == 1
+                assert after.current.profile == CONTROLLED_VOCABULARY_PROFILE_ID
+                current = await client.get(created.headers["location"])
+                assert current.headers["etag"] == created.headers["etag"]
+            finally:
+                if previous_active is not None:
+                    await catalog.activate_release(
+                        vocabulary.id,
+                        previous_active.id,
+                        expected_active_release_id=candidate.id,
+                    )
+                else:
+                    async with service.sessions() as session, session.begin():
+                        active_release = await session.get(
+                            VocabularyReleaseRecord, candidate.id
+                        )
+                        if active_release is not None:
+                            active_release.status = "superseded"
+                async with service.sessions() as session, session.begin():
+                    occurrence_ids = select(VocabularyReleaseConceptRecord.id).where(
+                        VocabularyReleaseConceptRecord.release_id == candidate.id
+                    )
+                    await session.execute(
+                        delete(VocabularyLabelRecord).where(
+                            VocabularyLabelRecord.release_concept_id.in_(occurrence_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(VocabularyIdentifierRecord).where(
+                            VocabularyIdentifierRecord.release_concept_id.in_(occurrence_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(VocabularyReleaseConceptRecord).where(
+                            VocabularyReleaseConceptRecord.release_id == candidate.id
+                        )
+                    )
+                    await session.execute(
+                        delete(VocabularyImportRecord).where(
+                            VocabularyImportRecord.release_id == candidate.id
+                        )
+                    )
+                    release = await session.get(VocabularyReleaseRecord, candidate.id)
+                    if release is not None:
+                        await session.delete(release)
 
     asyncio.run(scenario())
 
@@ -454,9 +630,26 @@ def test_post_advance_rejection_is_atomic(failure: str, monkeypatch: pytest.Monk
             ) -> str:
                 return await advance(session, identifier, expected + 1)
 
-            def invalid_complete_graph(graph: object, uri: str, profile: str) -> object:
+            def invalid_complete_graph(
+                graph: Graph,
+                uri: str,
+                profile: str,
+                *,
+                vocabularies: VocabularyRegistry | None = None,
+                operation: TypingLiteral[
+                    "prevalidation", "create", "update", "restore", "publish"
+                ] = "create",
+                previous_graph: Graph | None = None,
+            ) -> list[dict[str, object]]:
                 graph.remove((URIRef(uri), BF.title, None))
-                return prepare_document(graph, uri, profile)
+                return prepare_document(
+                    graph,
+                    uri,
+                    profile,
+                    vocabularies=vocabularies,
+                    operation=operation,
+                    previous_graph=previous_graph,
+                )
 
             with monkeypatch.context() as scoped:
                 if failure == "database_cas":

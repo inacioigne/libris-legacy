@@ -18,6 +18,7 @@ from libris.modules.bibliographic.api.schemas.relationships import (
     RelationshipCreate,
 )
 from libris.modules.bibliographic.application.editorial import (
+    CatalogPublicationRejected,
     EditorialService,
     EditorialTransaction,
     PublicationContext,
@@ -48,6 +49,12 @@ from libris.modules.bibliographic.domain.models import (
     Revision,
 )
 from libris.modules.bibliographic.domain.relationships import EntityType
+from libris.modules.bibliographic.domain.vocabularies import (
+    CONTROLLED_VOCABULARY_PROFILE_ID,
+    VocabularyConceptEvidence,
+    VocabularyDefinition,
+    VocabularyRegistry,
+)
 from libris.modules.bibliographic.infrastructure.rdf import BF
 from libris.modules.bibliographic.infrastructure.validation import (
     AUTHORITY_PROFILE_ID,
@@ -637,6 +644,56 @@ def test_required_local_reference_can_be_published() -> None:
     store = MemoryTransactions(record(S.APPROVED), context(EntityType.INSTANCE))
     asyncio.run(execute(store, S.PUBLISHED))
     assert store.state.public_revision == 1
+
+
+def test_publication_blocks_only_proven_absence_and_keeps_timeout_as_warning() -> None:
+    profile = CONTROLLED_VOCABULARY_PROFILE_ID
+    language = "http://id.loc.gov/vocabulary/languages/por"
+    vocabulary = "http://id.loc.gov/vocabulary/languages/"
+    source = "urn:test:trusted-vocabulary-source"
+    publication = context(profile=profile)
+    publication.graph.add((URIRef(IDENTITY.uri), BF.language, URIRef(language)))
+    absent = VocabularyRegistry(
+        vocabularies=(
+            VocabularyDefinition(
+                uri=vocabulary,
+                release="complete-1",
+                source=source,
+                complete=True,
+            ),
+        )
+    )
+    rejected = MemoryTransactions(
+        record(S.APPROVED), replace(publication, vocabularies=absent)
+    )
+    with pytest.raises(CatalogPublicationRejected) as error:
+        asyncio.run(execute(rejected, S.PUBLISHED))
+    assert error.value.result.conforms is False
+    assert any(
+        issue.code == C.VOCABULARY_MISMATCH and issue.field_ids == ("/language",)
+        for issue in error.value.result.issues
+    )
+    assert rejected.state.editorial_state == S.APPROVED and not rejected.changes
+
+    unavailable = VocabularyRegistry(
+        vocabularies=(
+            VocabularyDefinition(
+                uri=vocabulary,
+                release="complete-1",
+                source=source,
+                concepts=(
+                    VocabularyConceptEvidence(uri=language, status="unavailable"),
+                ),
+                complete=True,
+            ),
+        )
+    )
+    accepted = MemoryTransactions(
+        record(S.APPROVED), replace(publication, vocabularies=unavailable)
+    )
+    asyncio.run(execute(accepted, S.PUBLISHED))
+    assert accepted.state.public_revision == 1
+    assert len(accepted.changes) == 1
 
 
 def test_content_cas_is_checked_even_when_editorial_version_matches() -> None:

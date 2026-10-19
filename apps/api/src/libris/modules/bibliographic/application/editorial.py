@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from contextlib import AbstractAsyncContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Protocol
@@ -37,6 +37,7 @@ from libris.modules.bibliographic.domain.errors import CatalogError
 from libris.modules.bibliographic.domain.models import Revision
 from libris.modules.bibliographic.domain.profile_registry import ProfileError
 from libris.modules.bibliographic.domain.relationships import DEFAULT_REGISTRY, EntityType
+from libris.modules.bibliographic.domain.vocabularies import VocabularyRegistry
 from libris.modules.bibliographic.infrastructure.ownership import check_snapshot
 from libris.modules.bibliographic.infrastructure.profiles import (
     LEGACY_PROFILES,
@@ -95,6 +96,7 @@ class PublicationContext:
     graph: Graph
     relationships: RelationshipCreate
     resolver: ReferenceResolver
+    vocabularies: VocabularyRegistry = field(default_factory=VocabularyRegistry)
 
 
 class EditorialTransaction(Protocol):
@@ -153,7 +155,12 @@ async def publication_readiness(
             applicable = {resource.rdf_class for resource in profile.resources}
         if str(kind) not in applicable:
             raise CatalogError(C.PROFILE_INCOMPATIBLE, "Perfil incompatível com a raiz.")
-        result = validate_catalog(context.graph, profile)
+        result = validate_catalog(
+            context.graph,
+            profile,
+            vocabularies=context.vocabularies,
+            operation="publish",
+        )
     except ProfileError as error:
         raise CatalogError(C.PROFILE_UNKNOWN, "Release catalográfica não utilizável.") from error
     except OSError as error:

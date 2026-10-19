@@ -8,7 +8,7 @@ export const instanceFields = ["instance_of", "title", "edition_statement", "pro
 export type InstanceField = typeof instanceFields[number];
 export type InstanceDraft = Required<Omit<InstanceCreate, "instance_of">> & { instance_of: InstanceCreate["instance_of"] | null };
 export type InstanceChoices = Partial<Record<InstanceField, "local" | "remote">>;
-export const instanceProfile = "urn:libris:profile:monograph:v1:1";
+export const instanceProfile = "urn:libris:profile:monograph:v1:2";
 
 export function draftFromInstance(instance?: InstanceRead | null): InstanceDraft {
   return structuredClone({ instance_of: instance?.instance_of ?? null, title: instance?.title ?? [],
