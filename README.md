@@ -1,5 +1,11 @@
 # Libris
 
+A M08.03 implementa a ingestão offline, releases candidatas/ativas, códigos MARC e
+variantes ISO evidenciadas, rótulos com proveniência, busca local e operação explícita
+de [LC Languages](docs/architecture/lc-languages-m0803.md). O vocabulário não é
+baixado no startup nem durante a catalogação; consulte as
+[evidências datadas](docs/architecture/lc-languages-m0803-verification-2026-10-19.md).
+
 A M08.02 implementa o
 [catálogo operacional persistente de vocabulários](docs/architecture/vocabulary-catalog-m0802.md):
 fontes, releases completas/parciais, conceitos por URI, labels multilíngues,

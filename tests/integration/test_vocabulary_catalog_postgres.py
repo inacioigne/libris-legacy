@@ -225,22 +225,35 @@ async def exercise(url: str) -> None:
             )
             assert stored_reliable is not None and stored_reliable.id == reliable.id
             assert await session.scalar(
-                select(func.count()).select_from(VocabularyConceptRecord)
+                select(func.count())
+                .select_from(VocabularyConceptRecord)
+                .where(VocabularyConceptRecord.vocabulary_id == vocabulary.id)
             ) == 3
             assert await session.scalar(
-                select(func.count()).select_from(VocabularyReleaseRecord)
+                select(func.count())
+                .select_from(VocabularyReleaseRecord)
+                .where(VocabularyReleaseRecord.vocabulary_id == vocabulary.id)
             ) == 3
             assert await session.scalar(
-                select(func.count()).select_from(VocabularyImportRecord)
+                select(func.count())
+                .select_from(VocabularyImportRecord)
+                .where(VocabularyImportRecord.vocabulary_id == vocabulary.id)
             ) == 3
             assert await session.scalar(
-                select(func.count()).select_from(VocabularyReleaseConceptRecord)
+                select(func.count())
+                .select_from(VocabularyReleaseConceptRecord)
+                .where(VocabularyReleaseConceptRecord.vocabulary_id == vocabulary.id)
             ) == 4
             assert await session.scalar(
-                select(func.count()).select_from(VocabularyLabelRecord)
+                select(func.count())
+                .select_from(VocabularyLabelRecord)
+                .join(VocabularyReleaseConceptRecord)
+                .where(VocabularyReleaseConceptRecord.vocabulary_id == vocabulary.id)
             ) == 12
             assert await session.scalar(
-                select(func.count()).select_from(VocabularyResolutionAttemptRecord)
+                select(func.count())
+                .select_from(VocabularyResolutionAttemptRecord)
+                .where(VocabularyResolutionAttemptRecord.vocabulary_id == vocabulary.id)
             ) == 3
             assert not await session.scalar(
                 select(VocabularyReleaseRecord.id).where(

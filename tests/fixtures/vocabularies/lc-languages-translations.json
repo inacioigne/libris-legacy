@@ -1,0 +1,5 @@
+[
+  {"uri": "http://id.loc.gov/vocabulary/languages/eng", "language": "pt", "value": "Inglês", "source_uri": "urn:libris:translations:lc-languages:pt:2026-10-19"},
+  {"uri": "http://id.loc.gov/vocabulary/languages/por", "language": "pt", "value": "Português", "source_uri": "urn:libris:translations:lc-languages:pt:2026-10-19"},
+  {"uri": "http://id.loc.gov/vocabulary/languages/spa", "language": "pt", "value": "Espanhol", "source_uri": "urn:libris:translations:lc-languages:pt:2026-10-19"}
+]

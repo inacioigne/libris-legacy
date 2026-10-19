@@ -1,12 +1,14 @@
 """Transactional use cases for the persistent operational vocabulary catalog."""
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import AwareDatetime, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -24,6 +26,7 @@ from libris.modules.bibliographic.application.vocabulary_resolution import (
 from libris.modules.bibliographic.infrastructure.vocabulary_catalog import (
     VocabularyCatalogRepository,
     VocabularyConceptRecord,
+    VocabularyIdentifierRecord,
     VocabularyImportRecord,
     VocabularyLabelRecord,
     VocabularyRecord,
@@ -40,6 +43,7 @@ LabelOrigin = Literal[
     "institutional_translation",
     "bibliographic_snapshot",
 ]
+IdentifierScheme = Literal["marc", "iso639-1", "iso639-2-b", "iso639-2-t", "iso639-3"]
 
 
 class VocabularyImportConflictError(RuntimeError):
@@ -78,6 +82,39 @@ class VocabularyReleaseInput(Contract):
 class ImportedConcept(Contract):
     concept: ControlledConcept | LocalConcept
     label_origin: LabelOrigin = "provider_official"
+    labels: tuple["VocabularyLabelInput", ...] = ()
+    identifiers: tuple["VocabularyIdentifierInput", ...] = ()
+
+    @model_validator(mode="after")
+    def unique_metadata(self) -> "ImportedConcept":
+        identifiers = [(item.scheme, item.value) for item in self.identifiers]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("Identificador duplicado no conceito importado.")
+        labels = [(item.kind, item.language, item.value) for item in self.labels]
+        if len(labels) != len(set(labels)):
+            raise ValueError("Rótulo duplicado no conceito importado.")
+        return self
+
+
+class VocabularyLabelInput(Contract):
+    kind: Literal["preferred", "alternative"]
+    value: str = Field(min_length=1)
+    language: str = ""
+    origin: LabelOrigin
+    source_uri: IRI
+
+    @model_validator(mode="after")
+    def normalize_language(self) -> "VocabularyLabelInput":
+        normalized = self.language.lower()
+        if normalized != self.language:
+            return self.model_copy(update={"language": normalized})
+        return self
+
+
+class VocabularyIdentifierInput(Contract):
+    scheme: IdentifierScheme
+    value: str = Field(min_length=1, pattern=r"^[a-z0-9-]+$")
+    source_uri: IRI
 
 
 class VocabularyImport(Contract):
@@ -95,6 +132,17 @@ class VocabularyImport(Contract):
     def payload_digest(self) -> str:
         canonical = self.model_dump_json(exclude={"idempotency_key"})
         return sha256(canonical.encode()).hexdigest()
+
+
+class VocabularyChangeReport(Contract):
+    baseline_release_id: UUID | None
+    candidate_release_id: UUID
+    added: tuple[str, ...]
+    changed_labels: tuple[str, ...]
+    changed_identifiers: tuple[str, ...]
+    absent: tuple[str, ...]
+    explicitly_obsolete: tuple[str, ...]
+    absence_proves_removal: bool
 
 
 class VocabularyCatalogService:
@@ -316,24 +364,219 @@ class VocabularyCatalogService:
         session.add(occurrence)
         await session.flush()
         label_source = value.source or release.source_uri
+        labels = list(imported.labels) or [
+            VocabularyLabelInput(
+                kind=kind_name,
+                value=label.value,
+                language=(label.language or "").lower(),
+                origin=imported.label_origin,
+                source_uri=label_source,
+            )
+            for kind_name, values in (
+                ("preferred", value.label),
+                ("alternative", value.alternative_labels),
+            )
+            for label in values
+        ]
         session.add_all(
             [
                 VocabularyLabelRecord(
                     id=uuid4(),
                     release_concept_id=occurrence.id,
-                    kind=kind_name,
+                    kind=label.kind,
                     value=label.value,
-                    language=(label.language or "").lower(),
-                    origin=imported.label_origin,
-                    source_uri=label_source,
-                )
-                for kind_name, labels in (
-                    ("preferred", value.label),
-                    ("alternative", value.alternative_labels),
+                    language=label.language,
+                    origin=label.origin,
+                    source_uri=label.source_uri,
                 )
                 for label in labels
             ]
         )
+        session.add_all(
+            [
+                VocabularyIdentifierRecord(
+                    id=uuid4(),
+                    release_concept_id=occurrence.id,
+                    scheme=identifier.scheme,
+                    value=identifier.value,
+                    source_uri=identifier.source_uri,
+                )
+                for identifier in imported.identifiers
+            ]
+        )
+
+    async def activate_release(
+        self,
+        vocabulary_id: UUID,
+        release_id: UUID,
+        *,
+        expected_active_release_id: UUID | None,
+    ) -> VocabularyReleaseRecord:
+        """Atomically move the active pointer using the release state as the CAS value."""
+        async with self.sessions() as session, session.begin():
+            candidate = await session.get(VocabularyReleaseRecord, release_id)
+            if candidate is None or candidate.vocabulary_id != vocabulary_id:
+                raise LookupError("Release não encontrada no vocabulário.")
+            if candidate.status not in {"candidate", "superseded", "active"}:
+                raise VocabularyImportConflictError("Release não pode ser ativada neste estado.")
+            active = await session.scalar(
+                select(VocabularyReleaseRecord)
+                .where(
+                    VocabularyReleaseRecord.vocabulary_id == vocabulary_id,
+                    VocabularyReleaseRecord.status == "active",
+                )
+                .with_for_update()
+            )
+            actual = active.id if active is not None else None
+            if actual != expected_active_release_id:
+                raise VocabularyImportConflictError("Release ativa mudou durante a ativação.")
+            if active is not None and active.id != candidate.id:
+                active.status = "superseded"
+                await session.flush()
+            candidate.status = "active"
+            await session.flush()
+            return candidate
+
+    async def search_active(
+        self, vocabulary_id: UUID, query: str, *, limit: int = 20
+    ) -> tuple[tuple[str, str | None, str | None, str | None], ...]:
+        """Search the local active release by exact URI/code or case-folded label."""
+        needle = query.strip()
+        if not needle or not 1 <= limit <= 100:
+            return ()
+        async with self.sessions() as session:
+            statement = (
+                select(
+                    VocabularyReleaseConceptRecord.concept_uri,
+                    VocabularyReleaseConceptRecord.notation,
+                    VocabularyLabelRecord.value,
+                    VocabularyLabelRecord.language,
+                )
+                .join(
+                    VocabularyReleaseRecord,
+                    VocabularyReleaseRecord.id == VocabularyReleaseConceptRecord.release_id,
+                )
+                .outerjoin(
+                    VocabularyLabelRecord,
+                    VocabularyLabelRecord.release_concept_id == VocabularyReleaseConceptRecord.id,
+                )
+                .outerjoin(
+                    VocabularyIdentifierRecord,
+                    VocabularyIdentifierRecord.release_concept_id
+                    == VocabularyReleaseConceptRecord.id,
+                )
+                .where(
+                    VocabularyReleaseRecord.vocabulary_id == vocabulary_id,
+                    VocabularyReleaseRecord.status == "active",
+                    or_(
+                        VocabularyReleaseConceptRecord.concept_uri == needle,
+                        VocabularyReleaseConceptRecord.notation == needle.lower(),
+                        VocabularyIdentifierRecord.value == needle.lower(),
+                        func.lower(VocabularyLabelRecord.value).contains(needle.lower()),
+                    ),
+                )
+                .order_by(
+                    VocabularyReleaseConceptRecord.concept_uri,
+                    VocabularyLabelRecord.kind,
+                    VocabularyLabelRecord.language,
+                )
+                .limit(limit)
+            )
+            result = await session.execute(statement)
+            return tuple((row[0], row[1], row[2], row[3]) for row in result)
+
+    async def compare_releases(
+        self,
+        candidate_release_id: UUID,
+        baseline_release_id: UUID | None,
+    ) -> VocabularyChangeReport:
+        """Report logical change without mutating either immutable release."""
+        async with self.sessions() as session:
+            candidate = await session.get(VocabularyReleaseRecord, candidate_release_id)
+            if candidate is None:
+                raise LookupError("Release candidata não encontrada.")
+            baseline = (
+                await session.get(VocabularyReleaseRecord, baseline_release_id)
+                if baseline_release_id is not None
+                else None
+            )
+            if baseline is not None and baseline.vocabulary_id != candidate.vocabulary_id:
+                raise ValueError("Releases pertencem a vocabulários diferentes.")
+
+            async def snapshot(
+                release_id: UUID | None,
+            ) -> dict[str, tuple[str, frozenset[tuple[str, ...]], frozenset[tuple[str, ...]]]]:
+                if release_id is None:
+                    return {}
+                concepts = (
+                    await session.execute(
+                        select(
+                            VocabularyReleaseConceptRecord.id,
+                            VocabularyReleaseConceptRecord.concept_uri,
+                            VocabularyReleaseConceptRecord.status,
+                        ).where(VocabularyReleaseConceptRecord.release_id == release_id)
+                    )
+                ).all()
+                result: dict[
+                    str,
+                    tuple[str, frozenset[tuple[str, ...]], frozenset[tuple[str, ...]]],
+                ] = {}
+                for occurrence_id, uri, status in concepts:
+                    labels = frozenset(
+                        tuple(row)
+                        for row in (
+                            await session.execute(
+                                select(
+                                    VocabularyLabelRecord.kind,
+                                    VocabularyLabelRecord.language,
+                                    VocabularyLabelRecord.value,
+                                    VocabularyLabelRecord.origin,
+                                    VocabularyLabelRecord.source_uri,
+                                ).where(
+                                    VocabularyLabelRecord.release_concept_id == occurrence_id
+                                )
+                            )
+                        ).all()
+                    )
+                    identifiers = frozenset(
+                        tuple(row)
+                        for row in (
+                            await session.execute(
+                                select(
+                                    VocabularyIdentifierRecord.scheme,
+                                    VocabularyIdentifierRecord.value,
+                                    VocabularyIdentifierRecord.source_uri,
+                                ).where(
+                                    VocabularyIdentifierRecord.release_concept_id == occurrence_id
+                                )
+                            )
+                        ).all()
+                    )
+                    result[uri] = (status, labels, identifiers)
+                return result
+
+            old = await snapshot(baseline_release_id)
+            new = await snapshot(candidate_release_id)
+            shared = set(old) & set(new)
+            return VocabularyChangeReport(
+                baseline_release_id=baseline_release_id,
+                candidate_release_id=candidate_release_id,
+                added=tuple(sorted(set(new) - set(old))),
+                changed_labels=tuple(sorted(uri for uri in shared if old[uri][1] != new[uri][1])),
+                changed_identifiers=tuple(
+                    sorted(uri for uri in shared if old[uri][2] != new[uri][2])
+                ),
+                absent=tuple(sorted(set(old) - set(new))),
+                explicitly_obsolete=tuple(
+                    sorted(
+                        uri
+                        for uri, value in new.items()
+                        if value[0] == "deprecated"
+                        and (uri not in old or old[uri][0] != "deprecated")
+                    )
+                ),
+                absence_proves_removal=candidate.completeness == "complete",
+            )
 
     async def record_resolution(
         self,

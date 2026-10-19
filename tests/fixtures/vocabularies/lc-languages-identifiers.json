@@ -1,0 +1,29 @@
+[
+  {
+    "uri": "http://id.loc.gov/vocabulary/languages/eng",
+    "identifiers": [
+      {"scheme": "iso639-1", "value": "en", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-2-b", "value": "eng", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-2-t", "value": "eng", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-3", "value": "eng", "source_uri": "https://iso639-3.sil.org/code/eng"}
+    ]
+  },
+  {
+    "uri": "http://id.loc.gov/vocabulary/languages/por",
+    "identifiers": [
+      {"scheme": "iso639-1", "value": "pt", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-2-b", "value": "por", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-2-t", "value": "por", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-3", "value": "por", "source_uri": "https://iso639-3.sil.org/code/por"}
+    ]
+  },
+  {
+    "uri": "http://id.loc.gov/vocabulary/languages/spa",
+    "identifiers": [
+      {"scheme": "iso639-1", "value": "es", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-2-b", "value": "spa", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-2-t", "value": "spa", "source_uri": "https://www.loc.gov/standards/iso639-2/php/code_list.php"},
+      {"scheme": "iso639-3", "value": "spa", "source_uri": "https://iso639-3.sil.org/code/spa"}
+    ]
+  }
+]

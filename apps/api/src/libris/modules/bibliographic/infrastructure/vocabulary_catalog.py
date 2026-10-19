@@ -74,6 +74,12 @@ class VocabularyReleaseRecord(Base):
             name="ck_vocabulary_release_partial_scope",
         ),
         Index("ix_vocabulary_release_vocabulary", "vocabulary_id", "created_at"),
+        Index(
+            "uq_vocabulary_release_active",
+            "vocabulary_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -180,13 +186,30 @@ class VocabularyLabelRecord(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    release_concept_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vocabulary_release_concepts.id")
-    )
+    release_concept_id: Mapped[UUID] = mapped_column(ForeignKey("vocabulary_release_concepts.id"))
     kind: Mapped[str] = mapped_column(String)
     value: Mapped[str] = mapped_column(String)
     language: Mapped[str] = mapped_column(String, default="")
     origin: Mapped[str] = mapped_column(String)
+    source_uri: Mapped[str] = mapped_column(String)
+
+
+class VocabularyIdentifierRecord(Base):
+    __tablename__ = "vocabulary_identifiers"
+    __table_args__ = (
+        UniqueConstraint("release_concept_id", "scheme", "value", name="uq_vocabulary_identifier"),
+        CheckConstraint(
+            "scheme IN ('marc','iso639-1','iso639-2-b','iso639-2-t','iso639-3')",
+            name="ck_vocabulary_identifier_scheme",
+        ),
+        CheckConstraint("value = lower(value)", name="ck_vocabulary_identifier_value"),
+        Index("ix_vocabulary_identifier_lookup", "scheme", "value"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    release_concept_id: Mapped[UUID] = mapped_column(ForeignKey("vocabulary_release_concepts.id"))
+    scheme: Mapped[str] = mapped_column(String)
+    value: Mapped[str] = mapped_column(String)
     source_uri: Mapped[str] = mapped_column(String)
 
 
@@ -272,12 +295,8 @@ class VocabularyResolutionAttemptRecord(Base):
 class VocabularyCatalogRepository:
     """Persistence primitives; transaction ownership remains with the application."""
 
-    async def vocabulary_by_uri(
-        self, session: AsyncSession, uri: str
-    ) -> VocabularyRecord | None:
-        rows = await session.scalars(
-            select(VocabularyRecord).where(VocabularyRecord.uri == uri)
-        )
+    async def vocabulary_by_uri(self, session: AsyncSession, uri: str) -> VocabularyRecord | None:
+        rows = await session.scalars(select(VocabularyRecord).where(VocabularyRecord.uri == uri))
         return rows.one_or_none()
 
     async def release_by_key(
@@ -318,8 +337,7 @@ class VocabularyCatalogRepository:
             .where(
                 VocabularyResolutionAttemptRecord.concept_uri == uri,
                 VocabularyResolutionAttemptRecord.provider_uri == provider_uri,
-                VocabularyResolutionAttemptRecord.configuration_version
-                == configuration_version,
+                VocabularyResolutionAttemptRecord.configuration_version == configuration_version,
                 VocabularyResolutionAttemptRecord.context == context,
             )
             .order_by(
@@ -344,8 +362,7 @@ class VocabularyCatalogRepository:
             .where(
                 VocabularyResolutionAttemptRecord.concept_uri == uri,
                 VocabularyResolutionAttemptRecord.provider_uri == provider_uri,
-                VocabularyResolutionAttemptRecord.configuration_version
-                == configuration_version,
+                VocabularyResolutionAttemptRecord.configuration_version == configuration_version,
                 VocabularyResolutionAttemptRecord.context == context,
                 VocabularyResolutionAttemptRecord.outcome == "success",
                 VocabularyResolutionAttemptRecord.reliable.is_(True),

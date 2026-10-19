@@ -82,6 +82,7 @@ def test_vocabulary_upgrade_constraints_protected_downgrade_and_reupgrade() -> N
         "vocabulary_concepts",
         "vocabulary_release_concepts",
         "vocabulary_labels",
+        "vocabulary_identifiers",
         "vocabulary_imports",
         "vocabulary_resolution_attempts",
     }

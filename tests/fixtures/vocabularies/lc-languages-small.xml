@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<codelist xmlns="info:lc/xmlns/codelist-v1" version="1.0">
+  <codelistId>iso639-2b</codelistId>
+  <title>MARC Code List for Languages</title>
+  <author>Network Development and MARC Standards Office, Library of Congress</author>
+  <uri>info:lc/vocabulary/languages</uri>
+  <languages>
+    <language><uri>info:lc/vocabulary/languages/eng</uri><name authorized="yes">English</name><code>eng</code></language>
+    <language><uri>info:lc/vocabulary/languages/por</uri><name authorized="yes">Portuguese</name><code>por</code></language>
+    <language><uri>info:lc/vocabulary/languages/spa</uri><name authorized="yes">Spanish</name><code>spa</code></language>
+  </languages>
+</codelist>
