@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../..");
-const inputPath = resolve(repoRoot, "docs/architecture/catalogographic-openapi-v1.json");
+const inputPath = resolve(repoRoot, "docs/architecture/catalogographic-openapi-v1-m0804.json");
 const clientDir = resolve(repoRoot, "apps/web/src/generated");
 const typesOutput = resolve(clientDir, "catalogographic-openapi.ts");
 const clientOutput = resolve(clientDir, "catalogographic-client.ts");
@@ -38,7 +38,7 @@ export async function buildSchemaClientArtifacts() {
   await readFile(tempTypesOutput, "utf8");
 
   const generatedTypes = [
-    "// This file is generated from docs/architecture/catalogographic-openapi-v1.json.",
+    "// This file is generated from docs/architecture/catalogographic-openapi-v1-m0804.json.",
     "// Do not edit manually; regenerate with \"npm run openapi:generate\".",
     "",
     typeOutput.trimEnd(),
@@ -49,7 +49,7 @@ export async function buildSchemaClientArtifacts() {
   await unlink(tempTypesOutput);
 
   const generatedClient = [
-    "// This file is generated from docs/architecture/catalogographic-openapi-v1.json.",
+    "// This file is generated from docs/architecture/catalogographic-openapi-v1-m0804.json.",
     "// Do not edit manually; regenerate with \"npm run openapi:generate\".",
     "",
     "import createClient from \"openapi-fetch\";",

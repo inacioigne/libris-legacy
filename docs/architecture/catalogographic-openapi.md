@@ -1,11 +1,15 @@
-# Baseline OpenAPI operacional v1 — M06.01 / #53
+# Baseline OpenAPI operacional v1
 
-O [OpenAPI versionado](catalogographic-openapi-v1.json) contém o documento integral
-produzido pela fábrica **real** FastAPI, incluindo catálogo, identidade e health.
+O snapshot operacional atual é [M08.04](catalogographic-openapi-v1-m0804.json), com
+as rotas reais de vocabulários, catálogo, identidade e health produzidas pela fábrica
+FastAPI. O snapshot original [M06.01](catalogographic-openapi-v1.json) permanece
+inalterado como evidência histórica.
 Complementa, sem substituir, o [JSON Schema documental 1.0.0](catalogographic-contract-v1.schema.json).
 `info.version=0.1.0` é versão do aplicativo; `/api/v1` é caminho existente;
 `urn:libris:contract:catalogographic:v1` identifica a especificação documental.
-A baseline não acrescenta endpoints, autenticação ou seleção de versão.
+A baseline registra operações existentes, sem criar rotas, autenticação ou
+seleção de versão por si só. Os contratos e limites das rotas M08.04 estão em
+[vocabulary-api-m0804.md](vocabulary-api-m0804.md).
 
 ## Gerar, verificar e revisar
 

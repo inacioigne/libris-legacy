@@ -7,6 +7,12 @@ from pydantic import model_validator
 from .profile_contract import IRI, Contract, Version
 
 
+def membership_from_evidence(*, present: bool, complete: bool) -> bool | None:
+    if present:
+        return True
+    return False if complete else None
+
+
 class VocabularyDefinition(Contract):
     uri: IRI
     release: Version
@@ -37,6 +43,4 @@ class VocabularyRegistry(Contract):
         entry = next((entry for entry in self.vocabularies if entry.uri == vocabulary), None)
         if entry is None:
             return None
-        if uri in entry.members:
-            return True
-        return False if entry.complete else None
+        return membership_from_evidence(present=uri in entry.members, complete=entry.complete)

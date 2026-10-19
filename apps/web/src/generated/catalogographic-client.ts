@@ -1,4 +1,4 @@
-// This file is generated from docs/architecture/catalogographic-openapi-v1.json.
+// This file is generated from docs/architecture/catalogographic-openapi-v1-m0804.json.
 // Do not edit manually; regenerate with "npm run openapi:generate".
 
 import createClient from "openapi-fetch";

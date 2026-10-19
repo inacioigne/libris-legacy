@@ -73,7 +73,7 @@ class VocabularyReleaseInput(Contract):
     retrieved_at: AwareDatetime
 
     @model_validator(mode="after")
-    def partial_scope(self) -> "VocabularyReleaseInput":
+    def partial_scope(self) -> VocabularyReleaseInput:
         if self.completeness == "partial" and not (self.scope and self.scope.strip()):
             raise ValueError("Release parcial exige escopo explícito.")
         return self
@@ -82,11 +82,11 @@ class VocabularyReleaseInput(Contract):
 class ImportedConcept(Contract):
     concept: ControlledConcept | LocalConcept
     label_origin: LabelOrigin = "provider_official"
-    labels: tuple["VocabularyLabelInput", ...] = ()
-    identifiers: tuple["VocabularyIdentifierInput", ...] = ()
+    labels: tuple[VocabularyLabelInput, ...] = ()
+    identifiers: tuple[VocabularyIdentifierInput, ...] = ()
 
     @model_validator(mode="after")
-    def unique_metadata(self) -> "ImportedConcept":
+    def unique_metadata(self) -> ImportedConcept:
         identifiers = [(item.scheme, item.value) for item in self.identifiers]
         if len(identifiers) != len(set(identifiers)):
             raise ValueError("Identificador duplicado no conceito importado.")
@@ -104,7 +104,7 @@ class VocabularyLabelInput(Contract):
     source_uri: IRI
 
     @model_validator(mode="after")
-    def normalize_language(self) -> "VocabularyLabelInput":
+    def normalize_language(self) -> VocabularyLabelInput:
         normalized = self.language.lower()
         if normalized != self.language:
             return self.model_copy(update={"language": normalized})
@@ -123,7 +123,7 @@ class VocabularyImport(Contract):
     concepts: tuple[ImportedConcept, ...]
 
     @model_validator(mode="after")
-    def exact_unique_uris(self) -> "VocabularyImport":
+    def exact_unique_uris(self) -> VocabularyImport:
         uris = [entry.concept.uri for entry in self.concepts]
         if len(uris) != len(set(uris)):
             raise ValueError("Uma release não admite URI de conceito duplicada.")

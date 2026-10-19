@@ -127,10 +127,15 @@ def test_openapi_only_describes_real_operations_and_schemas() -> None:
         } | {
             f"/api/v1/catalog/public/{collection}"
             for collection in ("works", "instances", "items", "agents", "subjects")
+        } | {
+            "/api/v1/vocabularies",
+            "/api/v1/vocabularies/{vocabulary_id}/concepts",
+            "/api/v1/vocabularies/{vocabulary_id}/concepts/{concept_id}",
+            "/api/v1/vocabularies/{vocabulary_id}/validate",
         }
         assert schema["info"]["version"] == "0.1.0"
         operations = [op for path in schema["paths"].values() for op in path.values()]
-        assert len({op["operationId"] for op in operations}) == 49
+        assert len({op["operationId"] for op in operations}) == 53
         for path, model in (
             ("/health", "HealthResponse"),
             ("/api/v1/identity/me", "IdentityResponse"),
@@ -141,6 +146,10 @@ def test_openapi_only_describes_real_operations_and_schemas() -> None:
             }
             assert model in schema["components"]["schemas"]
         assert schema["paths"]["/api/v1/identity/me"]["get"]["security"] == [{"HTTPBearer": []}]
+        for path in schema["paths"]:
+            if path.startswith("/api/v1/vocabularies"):
+                for operation in schema["paths"][path].values():
+                    assert operation["security"] == [{"HTTPBearer": []}]
         assert schema["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
         for collection, name in (
             ("works", "Work"),
@@ -160,7 +169,7 @@ def test_openapi_only_describes_real_operations_and_schemas() -> None:
 def test_openapi_declared_errors_match_problem_details_transport() -> None:
     schema = main.create_app(Settings(_env_file=None, app_env="test")).openapi()
     for path, methods in schema["paths"].items():
-        if not path.startswith("/api/v1/catalog"):
+        if not path.startswith(("/api/v1/catalog", "/api/v1/vocabularies")):
             continue
         for operation in methods.values():
             for status, response in operation["responses"].items():

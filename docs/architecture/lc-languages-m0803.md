@@ -3,6 +3,10 @@
 **Status:** implementação local para revisão em 2026-10-19. A homologação institucional
 das traduções e dos direitos de redistribuição continua pendente.
 
+A exposição autenticada do catálogo carregado foi acrescentada depois pela M08.04;
+consulte [API de vocabulários](vocabulary-api-m0804.md). As limitações abaixo se
+referem à entrega inicial de ingestão M08.03.
+
 ## Objetivo e arquitetura
 
 A implementação materializa a MARC Code List for Languages no catálogo PostgreSQL da

@@ -8,6 +8,7 @@ from libris.modules.bibliographic.application.controlled_values import (
     EntityValue,
     LiteralValue,
     LocalConcept,
+    ReferenceStatus,
 )
 from libris.modules.bibliographic.application.diagnostics import Diagnostic
 from libris.modules.bibliographic.application.vocabulary_resolution import (
@@ -25,6 +26,73 @@ from libris.modules.bibliographic.domain.profile_contract import (
     TypedValue,
 )
 from libris.modules.bibliographic.domain.vocabularies import VocabularyRegistry
+
+
+def reference_status_diagnostics(
+    status: ReferenceStatus,
+    *,
+    field_id: str | None = None,
+) -> tuple[Diagnostic, ...]:
+    issues: list[Diagnostic] = []
+
+    def add(code: CatalogCode, message: str, *, warning: bool = False) -> None:
+        issues.append(
+            Diagnostic(
+                code=code,
+                message=message,
+                category="reference",
+                severity="Warning" if warning else "Violation",
+                field_ids=(field_id,) if field_id is not None else (),
+            )
+        )
+
+    if status == "invalid":
+        add(CatalogCode.REFERENCE_INVALID, "Conceito reconhecido como inválido.")
+    elif status == "deprecated":
+        add(
+            CatalogCode.REFERENCE_DEPRECATED,
+            "Conceito descontinuado; revisar uso.",
+            warning=True,
+        )
+    elif status in {"unverified", "unavailable"}:
+        add(
+            CatalogCode.REFERENCE_UNVERIFIED,
+            "Identidade do conceito ainda não verificada.",
+            warning=True,
+        )
+        if status == "unavailable":
+            add(
+                CatalogCode.RESOLVER_UNAVAILABLE,
+                "Fonte temporariamente indisponível.",
+                warning=True,
+            )
+    return tuple(issues)
+
+
+def vocabulary_membership_diagnostics(
+    membership: bool | None,
+    *,
+    field_id: str | None = None,
+) -> tuple[Diagnostic, ...]:
+    if membership is True:
+        return ()
+    return (
+        Diagnostic(
+            code=(
+                CatalogCode.VOCABULARY_MISMATCH
+                if membership is False
+                else CatalogCode.VOCABULARY_UNVERIFIED
+            ),
+            message=(
+                "Conceito fora do vocabulário obrigatório."
+                if membership is False
+                else "Pertença ao vocabulário ainda não verificada."
+            ),
+            category="reference",
+            severity="Violation" if membership is False else "Warning",
+            field_ids=(field_id,) if field_id is not None else (),
+        ),
+    )
 
 
 def validate_catalog_value(
@@ -107,36 +175,10 @@ def validate_catalog_value(
             add(CatalogCode.PROFILE_POLICY, "Valor fora dos valores permitidos pelo perfil.")
 
     if isinstance(value, (ControlledConcept, LocalConcept)):
-        if value.status == "invalid":
-            add(CatalogCode.REFERENCE_INVALID, "Conceito reconhecido como inválido.")
-        elif value.status == "deprecated":
-            add(
-                CatalogCode.REFERENCE_DEPRECATED,
-                "Conceito descontinuado; revisar uso.",
-                warning=True,
-            )
-        elif value.status in {"unverified", "unavailable"}:
-            add(
-                CatalogCode.REFERENCE_UNVERIFIED,
-                "Identidade do conceito ainda não verificada.",
-                warning=True,
-            )
-            if value.status == "unavailable":
-                add(
-                    CatalogCode.RESOLVER_UNAVAILABLE,
-                    "Fonte temporariamente indisponível.",
-                    warning=True,
-                )
+        issues.extend(reference_status_diagnostics(value.status, field_id=field_id))
         if isinstance(definition, ReferenceValue) and definition.vocabulary is not None:
             membership = vocabularies.membership(value.uri, definition.vocabulary)
-            if membership is False:
-                add(CatalogCode.VOCABULARY_MISMATCH, "Conceito fora do vocabulário obrigatório.")
-            elif membership is None:
-                add(
-                    CatalogCode.VOCABULARY_UNVERIFIED,
-                    "Pertença ao vocabulário ainda não verificada.",
-                    warning=True,
-                )
+            issues.extend(vocabulary_membership_diagnostics(membership, field_id=field_id))
     elif isinstance(value, EntityValue) and isinstance(value.reference, UnreconciledReference):
         add(CatalogCode.REFERENCE_UNVERIFIED, "Entidade ainda não reconciliada.", warning=True)
     return tuple(issues)

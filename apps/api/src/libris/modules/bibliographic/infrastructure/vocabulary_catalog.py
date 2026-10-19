@@ -1,5 +1,6 @@
 """PostgreSQL models and repository for the operational vocabulary catalog."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -12,8 +13,12 @@ from sqlalchemy import (
     Index,
     String,
     UniqueConstraint,
+    case,
+    func,
+    or_,
     select,
     text,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -292,8 +297,354 @@ class VocabularyResolutionAttemptRecord(Base):
     retry_after_seconds: Mapped[int | None] = mapped_column(nullable=True)
 
 
+@dataclass(frozen=True)
+class VocabularyListingRow:
+    vocabulary: VocabularyRecord
+    source: VocabularySourceRecord
+    release: VocabularyReleaseRecord
+
+
+@dataclass(frozen=True)
+class VocabularyConceptSearchRow:
+    concept: VocabularyConceptRecord
+    occurrence: VocabularyReleaseConceptRecord
+    release: VocabularyReleaseRecord
+    vocabulary: VocabularyRecord
+    source: VocabularySourceRecord
+    label: str | None
+    label_language: str | None
+    label_origin: str | None
+    label_source_uri: str | None
+
+
+@dataclass(frozen=True)
+class VocabularyConceptDetailRow:
+    concept: VocabularyConceptRecord
+    occurrence: VocabularyReleaseConceptRecord
+    release: VocabularyReleaseRecord
+    vocabulary: VocabularyRecord
+    source: VocabularySourceRecord
+
+
 class VocabularyCatalogRepository:
     """Persistence primitives; transaction ownership remains with the application."""
+
+    async def available_vocabularies(
+        self, session: AsyncSession
+    ) -> tuple[VocabularyListingRow, ...]:
+        rows = await session.execute(
+            select(VocabularyRecord, VocabularySourceRecord, VocabularyReleaseRecord)
+            .join(VocabularySourceRecord, VocabularySourceRecord.id == VocabularyRecord.source_id)
+            .join(
+                VocabularyReleaseRecord,
+                VocabularyReleaseRecord.vocabulary_id == VocabularyRecord.id,
+            )
+            .where(
+                VocabularyRecord.status == "active",
+                VocabularyReleaseRecord.status == "active",
+            )
+            .order_by(VocabularyRecord.uri, VocabularyRecord.id)
+        )
+        return tuple(
+            VocabularyListingRow(vocabulary, source, release)
+            for vocabulary, source, release in rows
+        )
+
+    async def vocabulary_by_id(
+        self, session: AsyncSession, vocabulary_id: UUID
+    ) -> VocabularyRecord | None:
+        vocabulary = await session.get(VocabularyRecord, vocabulary_id)
+        if vocabulary is None or vocabulary.status != "active":
+            return None
+        return vocabulary
+
+    async def query_release(
+        self,
+        session: AsyncSession,
+        vocabulary_id: UUID,
+        release_id: UUID | None,
+    ) -> VocabularyReleaseRecord | None:
+        statement = select(VocabularyReleaseRecord).where(
+            VocabularyReleaseRecord.vocabulary_id == vocabulary_id
+        )
+        if release_id is None:
+            statement = statement.where(VocabularyReleaseRecord.status == "active")
+        else:
+            statement = statement.where(
+                VocabularyReleaseRecord.id == release_id,
+                VocabularyReleaseRecord.status.in_(("active", "superseded")),
+            )
+        rows = await session.scalars(statement)
+        return rows.one_or_none()
+
+    async def search_concepts(
+        self,
+        session: AsyncSession,
+        *,
+        vocabulary_id: UUID,
+        release_id: UUID,
+        query: str | None,
+        uri: str | None,
+        status: str | None,
+        label_language: str | None,
+        locale_fallback: tuple[str, ...],
+        limit: int,
+        offset: int,
+    ) -> tuple[int, tuple[VocabularyConceptSearchRow, ...]]:
+        conditions = [
+            VocabularyReleaseConceptRecord.vocabulary_id == vocabulary_id,
+            VocabularyReleaseConceptRecord.release_id == release_id,
+        ]
+        if status is not None:
+            conditions.append(VocabularyReleaseConceptRecord.status == status)
+        if uri is not None:
+            conditions.append(VocabularyReleaseConceptRecord.concept_uri == uri)
+        if query is not None:
+            term = query.lower()
+            matching_label = (
+                select(VocabularyLabelRecord.id)
+                .where(
+                    VocabularyLabelRecord.release_concept_id
+                    == VocabularyReleaseConceptRecord.id,
+                    func.lower(
+                        func.regexp_replace(
+                            func.normalize(VocabularyLabelRecord.value),
+                            "[[:space:]]+",
+                            " ",
+                            "g",
+                        )
+                    ).contains(term, autoescape=True),
+                )
+                .exists()
+            )
+            matching_identifier = (
+                select(VocabularyIdentifierRecord.id)
+                .where(
+                    VocabularyIdentifierRecord.release_concept_id
+                    == VocabularyReleaseConceptRecord.id,
+                    VocabularyIdentifierRecord.value == term,
+                )
+                .exists()
+            )
+            conditions.append(
+                or_(
+                    func.lower(VocabularyReleaseConceptRecord.notation) == term,
+                    matching_label,
+                    matching_identifier,
+                )
+            )
+        if label_language is not None:
+            matching_locale = (
+                select(VocabularyLabelRecord.id)
+                .where(
+                    VocabularyLabelRecord.release_concept_id
+                    == VocabularyReleaseConceptRecord.id,
+                    VocabularyLabelRecord.language == label_language,
+                )
+                .exists()
+            )
+            conditions.append(matching_locale)
+
+        matching = (
+            select(VocabularyReleaseConceptRecord.id)
+            .where(*conditions)
+            .subquery()
+        )
+        total = int(await session.scalar(select(func.count()).select_from(matching)) or 0)
+        label_priority = case(
+            *(
+                (VocabularyLabelRecord.language == language, rank)
+                for rank, language in enumerate(locale_fallback)
+            ),
+            else_=len(locale_fallback),
+        )
+        preferred_label = (
+            select(
+                VocabularyLabelRecord.value.label("value"),
+                VocabularyLabelRecord.language.label("language"),
+                VocabularyLabelRecord.origin.label("origin"),
+                VocabularyLabelRecord.source_uri.label("source_uri"),
+            )
+            .where(
+                VocabularyLabelRecord.release_concept_id
+                == VocabularyReleaseConceptRecord.id
+            )
+            .order_by(
+                case((VocabularyLabelRecord.kind == "preferred", 0), else_=1),
+                label_priority,
+                VocabularyLabelRecord.language,
+                VocabularyLabelRecord.value,
+            )
+            .limit(1)
+            .lateral("localized_label")
+        )
+        rows = await session.execute(
+            select(
+                VocabularyConceptRecord,
+                VocabularyReleaseConceptRecord,
+                VocabularyReleaseRecord,
+                VocabularyRecord,
+                VocabularySourceRecord,
+                preferred_label.c.value,
+                preferred_label.c.language,
+                preferred_label.c.origin,
+                preferred_label.c.source_uri,
+            )
+            .join(
+                VocabularyReleaseConceptRecord,
+                VocabularyReleaseConceptRecord.concept_id == VocabularyConceptRecord.id,
+            )
+            .join(
+                VocabularyReleaseRecord,
+                VocabularyReleaseRecord.id == VocabularyReleaseConceptRecord.release_id,
+            )
+            .join(VocabularyRecord, VocabularyRecord.id == VocabularyConceptRecord.vocabulary_id)
+            .join(VocabularySourceRecord, VocabularySourceRecord.id == VocabularyRecord.source_id)
+            .outerjoin(preferred_label, true())
+            .where(*conditions)
+            .order_by(
+                VocabularyReleaseConceptRecord.concept_uri,
+                VocabularyConceptRecord.id,
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+        return total, tuple(
+            VocabularyConceptSearchRow(
+                concept,
+                occurrence,
+                release,
+                vocabulary,
+                source,
+                label,
+                label_language,
+                label_origin,
+                label_source_uri,
+            )
+            for (
+                concept,
+                occurrence,
+                release,
+                vocabulary,
+                source,
+                label,
+                label_language,
+                label_origin,
+                label_source_uri,
+            ) in rows
+        )
+
+    async def concept_detail(
+        self,
+        session: AsyncSession,
+        *,
+        vocabulary_id: UUID,
+        release_id: UUID,
+        concept_id: UUID,
+    ) -> VocabularyConceptDetailRow | None:
+        row = (
+            await session.execute(
+                select(
+                    VocabularyConceptRecord,
+                    VocabularyReleaseConceptRecord,
+                    VocabularyReleaseRecord,
+                    VocabularyRecord,
+                    VocabularySourceRecord,
+                )
+                .join(
+                    VocabularyReleaseConceptRecord,
+                    VocabularyReleaseConceptRecord.concept_id == VocabularyConceptRecord.id,
+                )
+                .join(
+                    VocabularyReleaseRecord,
+                    VocabularyReleaseRecord.id == VocabularyReleaseConceptRecord.release_id,
+                )
+                .join(
+                    VocabularyRecord,
+                    VocabularyRecord.id == VocabularyConceptRecord.vocabulary_id,
+                )
+                .join(
+                    VocabularySourceRecord,
+                    VocabularySourceRecord.id == VocabularyRecord.source_id,
+                )
+                .where(
+                    VocabularyConceptRecord.id == concept_id,
+                    VocabularyConceptRecord.vocabulary_id == vocabulary_id,
+                    VocabularyReleaseConceptRecord.release_id == release_id,
+                )
+            )
+        ).one_or_none()
+        return VocabularyConceptDetailRow(*row) if row is not None else None
+
+    async def concept_labels(
+        self, session: AsyncSession, occurrence_id: UUID
+    ) -> tuple[VocabularyLabelRecord, ...]:
+        rows = await session.scalars(
+            select(VocabularyLabelRecord)
+            .where(VocabularyLabelRecord.release_concept_id == occurrence_id)
+            .order_by(
+                case((VocabularyLabelRecord.kind == "preferred", 0), else_=1),
+                VocabularyLabelRecord.language,
+                VocabularyLabelRecord.value,
+                VocabularyLabelRecord.id,
+            )
+        )
+        return tuple(rows.all())
+
+    async def concept_by_uri(
+        self,
+        session: AsyncSession,
+        *,
+        vocabulary_id: UUID,
+        release_id: UUID,
+        uri: str,
+    ) -> VocabularyConceptDetailRow | None:
+        row = (
+            await session.execute(
+                select(
+                    VocabularyConceptRecord,
+                    VocabularyReleaseConceptRecord,
+                    VocabularyReleaseRecord,
+                    VocabularyRecord,
+                    VocabularySourceRecord,
+                )
+                .join(
+                    VocabularyReleaseConceptRecord,
+                    VocabularyReleaseConceptRecord.concept_id == VocabularyConceptRecord.id,
+                )
+                .join(
+                    VocabularyReleaseRecord,
+                    VocabularyReleaseRecord.id == VocabularyReleaseConceptRecord.release_id,
+                )
+                .join(
+                    VocabularyRecord,
+                    VocabularyRecord.id == VocabularyConceptRecord.vocabulary_id,
+                )
+                .join(
+                    VocabularySourceRecord,
+                    VocabularySourceRecord.id == VocabularyRecord.source_id,
+                )
+                .where(
+                    VocabularyConceptRecord.uri == uri,
+                    VocabularyConceptRecord.vocabulary_id == vocabulary_id,
+                    VocabularyReleaseConceptRecord.release_id == release_id,
+                )
+            )
+        ).one_or_none()
+        return VocabularyConceptDetailRow(*row) if row is not None else None
+
+    async def active_vocabulary_source(
+        self, session: AsyncSession, vocabulary_id: UUID
+    ) -> VocabularySourceRecord | None:
+        rows = await session.scalars(
+            select(VocabularySourceRecord)
+            .join(VocabularyRecord, VocabularyRecord.source_id == VocabularySourceRecord.id)
+            .where(
+                VocabularyRecord.id == vocabulary_id,
+                VocabularyRecord.status == "active",
+            )
+        )
+        return rows.one_or_none()
 
     async def vocabulary_by_uri(self, session: AsyncSession, uri: str) -> VocabularyRecord | None:
         rows = await session.scalars(select(VocabularyRecord).where(VocabularyRecord.uri == uri))

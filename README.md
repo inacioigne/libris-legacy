@@ -1,5 +1,12 @@
 # Libris
 
+A M08.04 expõe a [API autenticada de vocabulários](docs/architecture/vocabulary-api-m0804.md):
+busca local paginada, detalhes e validação offline sobre releases ativas ou históricas
+explicitamente selecionadas. A API não acessa provedores remotos nem Elasticsearch;
+seus contratos reais, a geração do cliente OpenAPI e as
+[evidências datadas](docs/architecture/vocabulary-api-m0804-verification-2026-10-19.md)
+estão documentados.
+
 A M08.03 implementa a ingestão offline, releases candidatas/ativas, códigos MARC e
 variantes ISO evidenciadas, rótulos com proveniência, busca local e operação explícita
 de [LC Languages](docs/architecture/lc-languages-m0803.md). O vocabulário não é

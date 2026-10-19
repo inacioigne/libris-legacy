@@ -54,6 +54,37 @@ def test_preflight(origin: str, method: str, header: str, status: int) -> None:
         assert "access-control-allow-origin" not in response.headers
 
 
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/api/v1/vocabularies", "GET"),
+        ("/api/v1/vocabularies/00000000-0000-4000-8000-000000000001/concepts", "GET"),
+        (
+            "/api/v1/vocabularies/00000000-0000-4000-8000-000000000001/"
+            "concepts/00000000-0000-4000-8000-000000000002",
+            "GET",
+        ),
+        ("/api/v1/vocabularies/00000000-0000-4000-8000-000000000001/validate", "POST"),
+    ],
+)
+def test_vocabulary_cors_preflight_includes_conditional_cache_header(
+    path: str, method: str
+) -> None:
+    app = create_app(Settings(_env_file=None, cors_origins=["http://localhost:3000"]))
+    with TestClient(app) as client:
+        response = client.options(
+            path,
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "Authorization, If-None-Match",
+            },
+        )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-methods"] == method
+    assert "if-none-match" in response.headers["access-control-allow-headers"].lower()
+
+
 @pytest.mark.parametrize("origin", [None, "https://evil.example", "http://localhost:3000"])
 @pytest.mark.parametrize("authorization", [None, "Bearer invalid-secret-token"])
 def test_401_private_and_cors_is_not_authentication(

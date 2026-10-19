@@ -99,6 +99,10 @@ def test_production_openapi_has_no_documentary_catalog_endpoints() -> None:
         "/api/v1/catalog/profiles/release",
         "/api/v1/catalog/{collection}/validation",
         "/api/v1/catalog/{collection}/{id}/relationships",
+        "/api/v1/vocabularies",
+        "/api/v1/vocabularies/{vocabulary_id}/concepts",
+        "/api/v1/vocabularies/{vocabulary_id}/concepts/{concept_id}",
+        "/api/v1/vocabularies/{vocabulary_id}/validate",
     } | {
         "/api/v1/catalog/{collection}/{id}/" + suffix
         for suffix in (

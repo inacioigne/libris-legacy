@@ -39,6 +39,10 @@ def test_openapi_exposes_health_contract() -> None:
         "/api/v1/catalog/profiles/release",
         "/api/v1/catalog/{collection}/validation",
         "/api/v1/catalog/{collection}/{id}/relationships",
+        "/api/v1/vocabularies",
+        "/api/v1/vocabularies/{vocabulary_id}/concepts",
+        "/api/v1/vocabularies/{vocabulary_id}/concepts/{concept_id}",
+        "/api/v1/vocabularies/{vocabulary_id}/validate",
     } | {
         "/api/v1/catalog/{collection}/{id}/" + suffix
         for suffix in (

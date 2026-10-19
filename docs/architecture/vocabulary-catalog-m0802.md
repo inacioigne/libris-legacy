@@ -7,6 +7,10 @@ materializa a fase persistente prevista na
 [ADR 0041](../decisions/0041-vocabulary-operations-governance.md) como decisão
 proposta, sem ampliar silenciosamente sua aprovação.
 
+A API de leitura adicionada posteriormente pela M08.04 está documentada em
+[vocabulary-api-m0804.md](vocabulary-api-m0804.md); as declarações abaixo descrevem
+o escopo original da persistência M08.02.
+
 ## Escopo e fronteiras
 
 O PostgreSQL passa a armazenar o catálogo operacional, releases, conceitos,

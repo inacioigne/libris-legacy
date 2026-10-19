@@ -17,6 +17,16 @@ class EndpointCORSMiddleware(CORSMiddleware):
         ):
             path = scope["path"]
             allowed = {"GET"} if path in {"/health", "/api/v1/identity/me"} else set()
+            if path == "/api/v1/vocabularies":
+                allowed = {"GET"}
+            elif re.fullmatch(
+                r"/api/v1/vocabularies/[0-9a-fA-F-]{36}/concepts"
+                r"(/[0-9a-fA-F-]{36})?",
+                path,
+            ):
+                allowed = {"GET"}
+            elif re.fullmatch(r"/api/v1/vocabularies/[0-9a-fA-F-]{36}/validate", path):
+                allowed = {"POST"}
             if re.fullmatch(r"/api/v1/catalog/(works|instances|items|agents|subjects)", path):
                 allowed = {"GET", "POST"}
             elif re.fullmatch(
@@ -111,13 +121,29 @@ class SecurityHeadersMiddleware:
                 if self.production and scope["scheme"] == "https":
                     policy[b"strict-transport-security"] = b"max-age=31536000"
                 supplied = scope.get("headers", [])
+                response_headers = Headers(raw=list(message.get("headers", [])))
+                vocabulary_cache = (
+                    scope["method"] == "GET"
+                    and re.fullmatch(
+                        r"/api/v1/vocabularies(?:/[0-9a-fA-F-]{36}/concepts"
+                        r"(?:/[0-9a-fA-F-]{36})?)?",
+                        scope["path"],
+                    )
+                    is not None
+                    and message["status"] in {200, 304}
+                    and response_headers.get("cache-control")
+                    == "private, no-cache, must-revalidate"
+                )
                 if (
                     scope["path"].startswith("/api/")
                     or any(key.lower() in {b"authorization", b"cookie"} for key, _ in supplied)
                     or message["status"] >= 400
-                ):
+                ) and not vocabulary_cache:
                     policy[b"cache-control"] = b"no-store, private"
                     policy[b"pragma"] = b"no-cache"
+                elif vocabulary_cache:
+                    policy.pop(b"cache-control", None)
+                    policy.pop(b"pragma", None)
                 headers = message.get("headers", [])
                 message["headers"] = [
                     (key, value)
