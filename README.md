@@ -1,5 +1,11 @@
 # Libris
 
+A M08.01 propõe o [desenho operacional e a governança de vocabulários](docs/architecture/vocabulary-operations-m0801.md),
+com registry único, releases internas imutáveis, catálogo/evidência/cache separados,
+matriz inicial da Library of Congress e plano incremental de persistência. O
+[ADR 0041](docs/decisions/0041-vocabulary-operations-governance.md) permanece
+proposto para revisão; esta entrega não implementa conectores, migrações ou nova API.
+
 A M07.04 acrescenta [consulta e vínculos visuais de Agent/Subject](docs/architecture/authority-links.md)
 nos detalhes administrativos de Work, Instance e Item, em pt/en, com seleção de
 autoridades existentes, papéis de contribuição e concorrência relacional.
