@@ -36,7 +36,8 @@ export type CatalogPermission =
   | "authority:read"
   | "bibliographic:read"
   | "bibliographic:create"
-  | "bibliographic:update";
+  | "bibliographic:update"
+  | "vocabulary:read";
 
 export interface CatalogRequestOptions {
   service?: AuthService;
@@ -87,6 +88,21 @@ const catalogPermissions: Record<"read" | "create" | "update", readonly string[]
 
 function hasPermission(identity: Identity, required: readonly string[]): boolean {
   return required.every((permission) => identity.permissions.includes(permission));
+}
+
+export function catalogPermissionSet(permission: CatalogPermission): readonly string[] {
+  switch (permission) {
+    case "authority:read":
+      return ["authority:read", "metadata_revision:read"];
+    case "vocabulary:read":
+      return ["bibliographic:read", "metadata_revision:read"];
+    case "bibliographic:read":
+      return catalogPermissions.read;
+    case "bibliographic:create":
+      return catalogPermissions.create;
+    case "bibliographic:update":
+      return catalogPermissions.update;
+  }
 }
 
 async function resolveSessionContext(options: CatalogRequestOptions = {}): Promise<CatalogSessionContext> {
@@ -148,12 +164,7 @@ export async function executeCatalogRequest<T>(
   requiredPermission: CatalogPermission,
 ): Promise<T> {
   const context = await resolveSessionContext(options);
-  const required = requiredPermission === "authority:read" ? ["authority:read", "metadata_revision:read"]
-    : requiredPermission === "bibliographic:read"
-    ? catalogPermissions.read
-    : requiredPermission === "bibliographic:create"
-      ? catalogPermissions.create
-      : catalogPermissions.update;
+  const required = catalogPermissionSet(requiredPermission);
   if (!hasPermission(context.identity, required)) {
     throw new CatalogAccessError(403, "permission_denied", context.identity);
   }
@@ -282,12 +293,7 @@ export async function requireCatalogPermission(
   options: CatalogRequestOptions = {},
 ): Promise<CatalogSessionContext> {
   const context = await resolveSessionContext(options);
-  const expected = required === "authority:read" ? ["authority:read", "metadata_revision:read"]
-    : required === "bibliographic:read"
-    ? catalogPermissions.read
-    : required === "bibliographic:create"
-      ? catalogPermissions.create
-      : catalogPermissions.update;
+  const expected = catalogPermissionSet(required);
   if (!hasPermission(context.identity, expected)) {
     throw new CatalogAccessError(403, "permission_denied", context.identity);
   }

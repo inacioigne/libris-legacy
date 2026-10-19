@@ -1,8 +1,10 @@
 "use client";
 
 import { useId, useRef, type ReactNode } from "react";
+import { LC_LANGUAGES_VOCABULARY } from "../../catalog/vocabularies";
 import { messages, type Locale } from "../../i18n/messages";
 import type { LocalizedText, WorkDraft } from "../../catalog/work-editor";
+import { VocabularyAutocomplete, type VocabularyResolveFn, type VocabularySearchFn } from "./VocabularyAutocomplete";
 
 const inputClass = "w-full rounded-lg border border-slate-400 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-950";
 export const buttonClass = "rounded-lg border border-slate-400 px-3 py-2 text-sm font-medium disabled:opacity-50";
