@@ -394,6 +394,170 @@ def test_http_shared_authorities_preserve_owners_and_atomic_link_batch() -> None
     asyncio.run(scenario())
 
 
+def test_m0706_end_to_end_cataloging_chain_and_published_revision() -> None:
+    """Exercise one connected cataloging flow through signed HTTP and PostgreSQL."""
+
+    async def scenario() -> None:
+        async with signed_client() as (client, catalog, issuer):
+            agent = await seed(client, "agents")
+            subject = await seed(client, "subjects")
+
+            def local(response: httpx.Response, entity_type: str) -> dict[str, str]:
+                return {
+                    "kind": "local",
+                    "entity_type": entity_type,
+                    "internal_id": response.json()["internal_id"],
+                    "uri": response.json()["uri"],
+                }
+
+            work_payload = {
+                "title": [
+                    {
+                        "main_title": [
+                            {"value": "Fluxo M07.06", "language": "pt"},
+                            {"value": "M07.06 flow", "language": "en"},
+                        ]
+                    },
+                    {
+                        "kind": "VariantTitle",
+                        "main_title": [{"value": "Homologação técnica", "language": "pt"}],
+                    },
+                ],
+                "language": [{"uri": "http://id.loc.gov/vocabulary/languages/por"}],
+                "contribution": [
+                    {
+                        "agent": local(agent, "Agent"),
+                        "role": [
+                            {"uri": "http://id.loc.gov/vocabulary/relators/aut"},
+                            {"uri": "http://id.loc.gov/vocabulary/relators/edt"},
+                        ],
+                    }
+                ],
+                "subject": [local(subject, "Subject")],
+                "note": [
+                    {
+                        "label": [
+                            {"value": "Nota estruturada", "language": "pt"},
+                            {"value": "Structured note", "language": "en"},
+                        ],
+                        "note_type": ["summary", "bibliography"],
+                    }
+                ],
+            }
+            work = await client.post("/api/v1/catalog/works", json=work_payload)
+            assert work.status_code == 201, work.text
+            instance = await client.post(
+                "/api/v1/catalog/instances",
+                json={
+                    "instance_of": local(work, "Work"),
+                    "edition_statement": [
+                        {"value": "Primeira edição", "language": "pt"},
+                        {"value": "First edition", "language": "en"},
+                    ],
+                    "identified_by": [{"kind": "Isbn", "value": "9780000000066"}],
+                    "provision_activity": [
+                        {
+                            "agent": [local(agent, "Agent")],
+                            "place": [{"uri": "urn:libris:test:manaus"}],
+                            "date": [
+                                {
+                                    "value": "2026",
+                                    "datatype": "http://www.w3.org/2001/XMLSchema#gYear",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+            assert instance.status_code == 201, instance.text
+            item = await client.post(
+                "/api/v1/catalog/items",
+                json={
+                    "item_of": local(instance, "Instance"),
+                    "identified_by": [{"kind": "Local", "value": "M0706-ITEM-1"}],
+                    "custodial_history": [
+                        {"value": "Doação para ensaio técnico", "language": "pt"}
+                    ],
+                    "note": [{"label": [{"value": "Item sem circulação", "language": "pt"}]}],
+                },
+            )
+            assert item.status_code == 201, item.text
+
+            resources = [(work, "Work"), (instance, "Instance"), (item, "Item")]
+            identities = {UUID(response.json()["internal_id"]) for response, _ in resources}
+            uris = {response.json()["uri"] for response, _ in resources}
+            assert len(identities) == len(uris) == 3
+            for response, _ in resources:
+                recovered = await client.get(response.headers["location"])
+                assert recovered.json() == response.json()
+                observed = await state(catalog.sessions, UUID(response.json()["internal_id"]))
+                assert observed.current.number == 1
+                assert observed.state.current_revision == 1
+                assert observed.state.published_revision is None
+                hidden = await client.get(response.headers["location"] + "/public")
+                assert hidden.status_code == 404
+
+            work_relations = await client.get(
+                work.headers["location"] + "/relationships?include_inverses=true"
+            )
+            instance_relations = await client.get(
+                instance.headers["location"] + "/relationships?include_inverses=true"
+            )
+            assert any(
+                link["target"].get("internal_id") == instance.json()["internal_id"]
+                for link in work_relations.json()["links"]
+            )
+            assert any(
+                link["target"].get("internal_id") == item.json()["internal_id"]
+                for link in instance_relations.json()["links"]
+            )
+
+            for response, _ in [(agent, "Agent"), (subject, "Subject"), *resources]:
+                path = response.headers["location"]
+                selected = (await client.get(path + "/editorial")).json()["current_revision"]
+                for operation, role in [
+                    ("submit", "libris-cataloger"),
+                    ("approve", "libris-reviewer"),
+                    ("publish", "libris-publisher"),
+                ]:
+                    client.headers.update(issuer.headers(role, subject=f"m0706-{role}"))
+                    transitioned = await command(client, path, operation, selected=selected)
+                    assert transitioned.status_code == 200, transitioned.text
+                public = await client.get(path + "/public")
+                assert public.status_code == 200 and public.json() == response.json()
+
+            client.headers.update(issuer.headers("libris-cataloger", subject="m0706-editor"))
+            current = await client.get(work.headers["location"])
+            candidate = await client.patch(
+                work.headers["location"],
+                headers={"If-Match": current.headers["etag"]},
+                json={"note": [{"label": [{"value": "CANDIDATE-M0706"}]}]},
+            )
+            assert candidate.status_code == 200, candidate.text
+            editorial = (await client.get(work.headers["location"] + "/editorial")).json()
+            assert editorial["current_revision"] == editorial["candidate_revision"] == 2
+            assert editorial["published_revision"] == editorial["public_revision"] == 1
+            public = await client.get(work.headers["location"] + "/public")
+            assert public.status_code == 200
+            assert public.json() == work.json() and "CANDIDATE-M0706" not in public.text
+            historical = parse_representation(
+                (await client.get(work.headers["location"] + "/revisions/1/snapshot")).text,
+                "turtle",
+            )
+            published = parse_representation(
+                (
+                    await client.get(
+                        work.headers["location"] + "/public",
+                        headers={"Accept": "text/turtle"},
+                    )
+                ).text,
+                "turtle",
+            )
+            assert isomorphic(historical, published)
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize("collection", COLLECTIONS)
 def test_validation_missing_references_and_no_physical_delete(collection: str) -> None:
     async def scenario() -> None:
