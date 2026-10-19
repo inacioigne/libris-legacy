@@ -41,7 +41,8 @@ if [[ "$ready" != 1 ]]; then
   echo 'PostgreSQL descartável não ficou disponível.' >&2
   exit 1
 fi
-for database in libris_audit_migration libris_editorial_migration libris_web_migration; do
+for database in libris_audit_migration libris_editorial_migration libris_web_migration \
+  libris_vocabulary_migration; do
   docker exec "$container_id" createdb -U libris_test "$database"
 done
 
@@ -50,6 +51,7 @@ export TEST_DATABASE_URL="$base_url/libris_test"
 export TEST_MIGRATION_DATABASE_URL="$base_url/libris_audit_migration"
 export TEST_EDITORIAL_MIGRATION_DATABASE_URL="$base_url/libris_editorial_migration"
 export TEST_WEB_MIGRATION_DATABASE_URL="$base_url/libris_web_migration"
+export TEST_VOCABULARY_MIGRATION_DATABASE_URL="$base_url/libris_vocabulary_migration"
 export TEST_WEB_ISOLATED=1
 DATABASE_URL="$TEST_DATABASE_URL" uv run alembic upgrade head
 

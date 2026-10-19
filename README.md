@@ -1,5 +1,13 @@
 # Libris
 
+A M08.02 implementa o
+[catálogo operacional persistente de vocabulários](docs/architecture/vocabulary-catalog-m0802.md):
+fontes, releases completas/parciais, conceitos por URI, labels multilíngues,
+importação idempotente e evidências/tentativas separadas em PostgreSQL. A entrega
+permanece interna, sem novos endpoints, conectores remotos ou alteração dos
+snapshots catalográficos. Consulte as
+[evidências datadas](docs/architecture/vocabulary-catalog-m0802-verification-2026-10-19.md).
+
 A M08.01 propõe o [desenho operacional e a governança de vocabulários](docs/architecture/vocabulary-operations-m0801.md),
 com registry único, releases internas imutáveis, catálogo/evidência/cache separados,
 matriz inicial da Library of Congress e plano incremental de persistência. O
