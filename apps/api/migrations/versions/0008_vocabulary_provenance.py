@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0008_vocabulary_release_provenance"
+revision: str = "0008_vocabulary_provenance"
 down_revision: str | None = "0007_lc_languages"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
