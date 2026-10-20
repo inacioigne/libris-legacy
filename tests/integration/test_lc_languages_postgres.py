@@ -6,14 +6,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.application.lc_languages import (
     LC_LANGUAGES_VOCABULARY,
     LC_LANGUAGES_XML,
     LC_PROVIDER,
     parse_lc_languages,
+)
+from libris.modules.bibliographic.application.lc_languages_rdf import (
+    parse_lc_languages_rdf,
 )
 from libris.modules.bibliographic.application.vocabulary_catalog import (
     VocabularyCatalogService,
@@ -27,6 +27,8 @@ from libris.modules.bibliographic.infrastructure.vocabulary_catalog import (
     VocabularyIdentifierRecord,
     VocabularyReleaseRecord,
 )
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 pytestmark = pytest.mark.integration
 FIXTURES = Path(__file__).parents[1] / "fixtures/vocabularies"
@@ -69,6 +71,11 @@ async def _exercise(url: str) -> None:
                 release_key="fixture-1",
                 source_uri=LC_LANGUAGES_XML,
                 digest=parsed.digest,
+                provenance={
+                    "format": "MARC Code List XML",
+                    "concept_count": len(parsed.concepts),
+                    "rights_status": "pending-institutional-review",
+                },
                 completeness="partial",
                 scope="por,eng,spa test fixture",
                 retrieved_at=NOW,
@@ -89,28 +96,50 @@ async def _exercise(url: str) -> None:
             ("Português", "/por"),
             ("eng", "/eng"),
             ("spa", "/spa"),
+            ("http://id.loc.gov/vocabulary/languages/por", "/por"),
         ):
             rows = await service.search_active(vocabulary.id, query)
             assert rows and rows[0][0].endswith(expected)
 
-        second_request = request.model_copy(
-            update={
-                "idempotency_key": "lc-small:second",
-                "release": request.release.model_copy(
-                    update={
-                        "release_key": "fixture-2",
-                        "digest": "b" * 64,
-                        "retrieved_at": NOW + timedelta(minutes=1),
-                    }
-                ),
-            }
+        turtle = parse_lc_languages_rdf(
+            (FIXTURES / "lc-languages-small.ttl").read_bytes(),
+            identifier_sidecar=FIXTURES / "lc-languages-identifiers.json",
+            translation_sidecar=FIXTURES / "lc-languages-translations.json",
+            expected_concepts=3,
+        )
+        second_request = VocabularyImport(
+            idempotency_key=f"lc-turtle:{turtle.digest}",
+            release=VocabularyReleaseInput(
+                release_key="fixture-2",
+                source_uri=turtle.source_uri,
+                digest=turtle.digest,
+                provenance={
+                    "format": "SKOS/RDF Turtle",
+                    "concept_count": len(turtle.concepts),
+                    "rights_status": "pending-institutional-review",
+                },
+                completeness="complete",
+                retrieved_at=NOW + timedelta(minutes=1),
+            ),
+            concepts=turtle.concepts,
         )
         second = await service.import_release(
             vocabulary.id, second_request, now=NOW + timedelta(minutes=1)
         )
+        assert (
+            await service.import_release(
+                vocabulary.id, second_request, now=NOW + timedelta(minutes=1)
+            )
+        ).id == second.id
+        assert second.source_uri == turtle.source_uri
+        assert second.provenance["format"] == "SKOS/RDF Turtle"
+        assert second.provenance["concept_count"] == 3
         unchanged = await service.compare_releases(second.id, first.id)
         assert unchanged.added == unchanged.absent == ()
-        assert unchanged.changed_labels == unchanged.changed_identifiers == ()
+        assert unchanged.changed_labels == tuple(
+            sorted(item.concept.uri for item in turtle.concepts)
+        )
+        assert unchanged.changed_identifiers == ()
         with pytest.raises(VocabularyImportConflictError, match="mudou"):
             await service.activate_release(
                 vocabulary.id, second.id, expected_active_release_id=None
@@ -120,15 +149,16 @@ async def _exercise(url: str) -> None:
         )
         assert activated.status == "active"
         async with sessions() as session:
-            statuses = dict(
-                (
-                    await session.execute(
-                        select(
-                            VocabularyReleaseRecord.release_key, VocabularyReleaseRecord.status
-                        ).where(VocabularyReleaseRecord.vocabulary_id == vocabulary.id)
-                    )
-                ).all()
-            )
+            status_rows = (
+                await session.execute(
+                    select(
+                        VocabularyReleaseRecord.release_key, VocabularyReleaseRecord.status
+                    ).where(VocabularyReleaseRecord.vocabulary_id == vocabulary.id)
+                )
+            ).all()
+            statuses: dict[str, str] = {
+                release_key: status for release_key, status in status_rows
+            }
             assert statuses == {"fixture-1": "superseded", "fixture-2": "active"}
             assert (
                 await session.scalar(select(func.count()).select_from(VocabularyIdentifierRecord))

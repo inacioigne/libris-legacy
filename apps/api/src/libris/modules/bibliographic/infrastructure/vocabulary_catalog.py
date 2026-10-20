@@ -93,6 +93,9 @@ class VocabularyReleaseRecord(Base):
     source_version: Mapped[str | None] = mapped_column(String, nullable=True)
     source_uri: Mapped[str] = mapped_column(String)
     digest: Mapped[str] = mapped_column(String(64))
+    provenance: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
     completeness: Mapped[str] = mapped_column(String)
     scope: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String)

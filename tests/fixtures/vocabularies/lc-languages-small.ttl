@@ -1,0 +1,26 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+<http://id.loc.gov/vocabulary/languages/MARC_Language>
+    rdfs:label "MARC Language"@en .
+
+<http://id.loc.gov/vocabulary/languages/eng>
+    a skos:Concept ;
+    skos:inScheme <http://id.loc.gov/vocabulary/languages> ;
+    skos:notation "eng" ;
+    skos:prefLabel "English"@en, "Englisch"@de ;
+    skos:altLabel "English language"@en .
+
+<http://id.loc.gov/vocabulary/languages/por>
+    a skos:Concept ;
+    skos:inScheme <http://id.loc.gov/vocabulary/languages> ;
+    skos:notation "por" ;
+    skos:prefLabel "Portuguese"@en, "Portugiesisch"@de .
+
+<http://id.loc.gov/vocabulary/languages/spa>
+    a skos:Concept ;
+    skos:inScheme <http://id.loc.gov/vocabulary/languages> ;
+    skos:notation "spa" ;
+    skos:prefLabel "Spanish"@en, "Spanisch"@de .

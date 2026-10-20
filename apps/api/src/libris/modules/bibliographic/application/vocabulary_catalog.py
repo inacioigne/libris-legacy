@@ -12,7 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from libris.modules.bibliographic.api.schemas.common import IRI, Contract
+from libris.modules.bibliographic.api.schemas.common import IRI, Contract, LocalizedText
 from libris.modules.bibliographic.application.controlled_values import (
     ControlledConcept,
     LocalConcept,
@@ -44,6 +44,7 @@ LabelOrigin = Literal[
     "bibliographic_snapshot",
 ]
 IdentifierScheme = Literal["marc", "iso639-1", "iso639-2-b", "iso639-2-t", "iso639-3"]
+LabelKind = Literal["preferred", "alternative"]
 
 
 class VocabularyImportConflictError(RuntimeError):
@@ -68,6 +69,7 @@ class VocabularyReleaseInput(Contract):
     source_version: str | None = None
     source_uri: IRI
     digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    provenance: dict[str, object] = Field(default_factory=dict)
     completeness: Completeness
     scope: str | None = None
     retrieved_at: AwareDatetime
@@ -302,6 +304,7 @@ class VocabularyCatalogService:
                 source_version=request.release.source_version,
                 source_uri=request.release.source_uri,
                 digest=request.release.digest,
+                provenance=request.release.provenance,
                 completeness=request.release.completeness,
                 scope=request.release.scope,
                 status="candidate",
@@ -364,6 +367,10 @@ class VocabularyCatalogService:
         session.add(occurrence)
         await session.flush()
         label_source = value.source or release.source_uri
+        label_groups: tuple[tuple[LabelKind, list[LocalizedText]], ...] = (
+            ("preferred", value.label),
+            ("alternative", value.alternative_labels),
+        )
         labels = list(imported.labels) or [
             VocabularyLabelInput(
                 kind=kind_name,
@@ -372,10 +379,7 @@ class VocabularyCatalogService:
                 origin=imported.label_origin,
                 source_uri=label_source,
             )
-            for kind_name, values in (
-                ("preferred", value.label),
-                ("alternative", value.alternative_labels),
-            )
+            for kind_name, values in label_groups
             for label in values
         ]
         session.add_all(

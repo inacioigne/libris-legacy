@@ -157,3 +157,123 @@ bash scripts/test-postgres.sh
 
 Resultados reais desta sessão estão em
 [lc-languages-m0803-verification-2026-10-19.md](lc-languages-m0803-verification-2026-10-19.md).
+
+## Evolução: ingestão SKOS/RDF Turtle — 2026-10-19
+
+Esta evolução acrescenta o parser offline de Turtle sem substituir o parser XML nem
+alterar a identidade do vocabulário ou os serviços de importação/ativação. O snapshot
+local analisado foi `apps/api/data/vocabularies/lc/languages.skosrdf.ttl`, com 464.803
+bytes e SHA-256
+`ff5ed169c0cf3aafb88e16288d15e1037b9845094e30a907322fe8cb5db93d39`.
+
+### Diagnóstico e mapeamento
+
+O grafo tem 9.343 triplas, 485 recursos `skos:Concept` e 994 `cs:ChangeSet`; não
+declara nenhum recurso tipado `skos:ConceptScheme`. Todos os 485 conceitos pertencem
+ao único esquema `http://id.loc.gov/vocabulary/languages` e suas URIs são exatamente
+`http://id.loc.gov/vocabulary/languages/{notation}`. O recurso
+`http://id.loc.gov/vocabulary/languages/MARC_Language` é rotulado “MARC Language”,
+confirmando a identidade MARC Languages. O artefato não é tratado como lista ISO.
+
+| Propriedade nos conceitos | Quantidade | Tratamento |
+| --- | ---: | --- |
+| `skos:inScheme` | 485 | Exigida e validada contra o esquema único |
+| `skos:notation` | 485 | Exigida; código MARC de três letras, único e igual ao segmento da URI |
+| `skos:prefLabel` | 962 | Preservada como rótulos preferenciais oficiais com idioma |
+| `skos:altLabel` | 0 | Suportada pelo parser; ausente no snapshot |
+| `owl:deprecated` | 0 | Só mudará status com valor booleano explícito |
+| `skos:exactMatch` | 357 | Não convertida em identificadores ISO nem persistida pelo DTO atual |
+| `skos:changeNote` | 963 | Contabilizada na proveniência; fora do modelo ImportedConcept |
+| `skos:editorial` | 485 | Contabilizada na proveniência; fora do modelo ImportedConcept |
+| `skos:historyNote` | 4 | Contabilizada na proveniência; não implica obsolescência |
+
+Todos os conceitos têm rótulo em inglês; 477 também têm rótulo em alemão, sem
+conceitos sem rótulo. As 485 notações são distintas e coincidem com os segmentos
+finais das URIs. `por`, `eng` e `spa` existem e retêm suas URIs canônicas. Não são
+derivadas notações, traduções ou equivalências ISO. Os vínculos `exactMatch` do RDF
+apontam a autoridades de assunto e não são evidência de códigos ISO.
+
+O contrato `ImportedConcept` acomoda a identidade, notação, estado, rótulos
+preferenciais/alternativos, idiomas e identificadores MARC. Anotações RDF sem campo
+equivalente são enumeradas na proveniência da release e não mudam o estado do
+conceito. Propriedades não reconhecidas no conceito bloqueiam a importação para
+revisão, em vez de serem descartadas silenciosamente. O hash do artefato original
+permanece associado à release.
+
+### Integridade e proveniência por release
+
+RDFLib já era dependência bloqueada do projeto. O parser recebe somente bytes locais,
+não carrega contextos/recursos remotos, exige UTF-8, Turtle válido, limite de 10 MiB,
+marcador MARC, pertença única, URI/notação canônica, rótulos e códigos únicos.
+Para uma release Turtle completa, `--expected-concepts` é obrigatório; o parser também
+valida a contagem exata e a presença de `eng`, `por` e `spa`. Arquivos parciais
+continuam exigindo `--partial-scope`. O limiar histórico XML de 400 conceitos foi
+mantido para compatibilidade e não é usado para validar a contagem Turtle.
+
+A fonte oficial registrada é Library of Congress, com direitos em
+`pending-institutional-review`. O `source_uri` da release Turtle é o IRI canônico do
+esquema (`http://id.loc.gov/vocabulary/languages`). O snapshot local não informa o
+URL exato de download nem a data em que foi obtido; nenhum endpoint `.ttl` ou data
+foram inferidos. O operador deve informar a data/hora real de obtenção em
+`--retrieved-at`. A release armazena URI da fonte, formato, nome local do artefato,
+SHA-256, data informada, versão do importador, quantidade de conceitos, status de
+direitos e contagens de propriedades RDF não mapeadas. Essa proveniência usa a nova
+coluna JSONB `vocabulary_releases.provenance` (migration incremental 0008); downgrade
+recusa apagar proveniência não vazia.
+
+### Comandos
+
+Executar em `apps/api`, com `DATABASE_URL` apontando explicitamente ao PostgreSQL
+autorizado e migrations aplicadas:
+
+```bash
+uv run alembic upgrade head
+uv run python -m libris.modules.bibliographic.lc_languages_cli prepare \
+  data/vocabularies/lc/languages.skosrdf.ttl --format turtle \
+  --release-key lc-languages-skos-2026-10 \
+  --retrieved-at DATA_REAL_COM_TIMEZONE --expected-concepts 485
+```
+
+O formato também é inferido para `.xml`, `.ttl` e `.turtle`; `--format` pode
+sobrescrever a inferência. `--max-bytes` configura o limite local. Sidecars de
+identificadores/traduções continuam opcionais e exigem evidência própria; não usar
+fixtures de teste como traduções homologadas. `prepare` cria uma release `candidate`,
+em uma transação, calcula o relatório de diferenças e não ativa automaticamente.
+Repetir a mesma chave e os mesmos dados é idempotente.
+
+A ativação permanece separada e usa CAS:
+
+```bash
+uv run python -m libris.modules.bibliographic.lc_languages_cli activate \
+  --release-key lc-languages-skos-2026-10 \
+  --expected-active-release-id UUID_ATIVO_OBSERVADO
+```
+
+Na carga inicial, quando não há release ativa, omitir `--expected-active-release-id`.
+Em atualização, observar o UUID ativo e passá-lo explicitamente. Para rollback, ativar
+uma release histórica `superseded` com o UUID ativo atual. Consultas locais continuam
+disponíveis por URI, código ou rótulo:
+
+```bash
+uv run python -m libris.modules.bibliographic.lc_languages_cli search \
+  http://id.loc.gov/vocabulary/languages/por
+uv run python -m libris.modules.bibliographic.lc_languages_cli search por
+uv run python -m libris.modules.bibliographic.lc_languages_cli search Portuguese
+```
+
+### Verificação e limites desta evolução
+
+Testes unitários usam fixture Turtle pequena, incluindo `por`/`eng`/`spa`, idioma,
+`altLabel`, tradução e identificador sidecar, obsolescência explícita, dados ausentes,
+notações/URIs inconsistentes, Turtle inválido, tamanho, ordenação e digest.
+Os testes PostgreSQL foram estendidos para verificar releases XML e Turtle, busca
+offline, idempotência, proveniência, concorrência de ativação e histórico. Resultados
+da execução atual devem ser registrados em
+[lc-languages-m0803-rdf-verification-2026-10-19.md](lc-languages-m0803-rdf-verification-2026-10-19.md),
+sem substituir o relatório histórico da entrega original.
+
+Não há confirmação de importação/ativação em banco de destino nesta evolução. A
+integração real requer PostgreSQL descartável para os testes e, para uma carga fora
+desse ambiente, confirmação do operador sobre destino, data real de obtenção e
+autorização. A implementação não modifica dados bibliográficos, não consulta a rede e
+não afirma homologação de direitos ou tradução institucional.

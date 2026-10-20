@@ -21,7 +21,7 @@ from libris.modules.bibliographic.application.vocabulary_catalog import (
 LC_LANGUAGES_VOCABULARY = "http://id.loc.gov/vocabulary/languages/"
 LC_LANGUAGES_XML = "https://www.loc.gov/standards/codelists/languages.xml"
 LC_PROVIDER = "https://www.loc.gov/"
-IMPORTER_VERSION = "libris-lc-languages-1"
+IMPORTER_VERSION = "libris-lc-languages-2"
 XML_NAMESPACE = "info:lc/xmlns/codelist-v1"
 CODE = re.compile(r"^[a-z]{3}$")
 
@@ -66,6 +66,9 @@ class ParsedLCLanguages:
     title: str
     source_identifier: str
     concepts: tuple[ImportedConcept, ...]
+    source_uri: str = LC_LANGUAGES_XML
+    format: Literal["xml", "turtle"] = "xml"
+    unmapped_properties: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -139,12 +142,36 @@ def _load_sidecar(path: Path | None, model: type[BaseModel]) -> list[BaseModel]:
         raise LCLanguagesError(f"Sidecar inválido: {path}") from error
 
 
+def _load_lc_language_sidecars(
+    identifier_sidecar: Path | None,
+    translation_sidecar: Path | None,
+) -> tuple[dict[str, IdentifierMapping], dict[str, list[TranslationEvidence]]]:
+    mappings: dict[str, IdentifierMapping] = {}
+    for entry in _load_sidecar(identifier_sidecar, IdentifierMapping):
+        if isinstance(entry, IdentifierMapping):
+            if entry.uri in mappings:
+                raise LCLanguagesError(f"URI duplicada no sidecar de identificadores: {entry.uri}")
+            mappings[entry.uri] = entry
+
+    translations: dict[str, list[TranslationEvidence]] = {}
+    seen_translations: set[tuple[str, str, str, str]] = set()
+    for entry in _load_sidecar(translation_sidecar, TranslationEvidence):
+        if isinstance(entry, TranslationEvidence):
+            key = (entry.uri, entry.language, entry.value, entry.source_uri)
+            if key in seen_translations:
+                raise LCLanguagesError(f"Tradução duplicada no sidecar: {entry.uri}")
+            seen_translations.add(key)
+            translations.setdefault(entry.uri, []).append(entry)
+    return mappings, translations
+
+
 def parse_lc_languages(
     artifact: bytes,
     *,
     identifier_sidecar: Path | None = None,
     translation_sidecar: Path | None = None,
     complete: bool = True,
+    expected_concepts: int | None = None,
 ) -> ParsedLCLanguages:
     """Parse bytes without network access, external entities, or remote contexts."""
     if not artifact:
@@ -166,15 +193,9 @@ def parse_lc_languages(
     if title != "MARC Code List for Languages" or not source_identifier:
         raise LCLanguagesError("Metadados obrigatórios do codelist estão ausentes.")
 
-    mappings = {
-        entry.uri: entry
-        for entry in _load_sidecar(identifier_sidecar, IdentifierMapping)
-        if isinstance(entry, IdentifierMapping)
-    }
-    translations: dict[str, list[TranslationEvidence]] = {}
-    for entry in _load_sidecar(translation_sidecar, TranslationEvidence):
-        if isinstance(entry, TranslationEvidence):
-            translations.setdefault(entry.uri, []).append(entry)
+    mappings, translations = _load_lc_language_sidecars(
+        identifier_sidecar, translation_sidecar
+    )
 
     concepts: list[ImportedConcept] = []
     seen_uris: set[str] = set()
@@ -255,6 +276,11 @@ def parse_lc_languages(
         raise LCLanguagesError("Snapshot não contém conceitos de idioma.")
     if complete and len(concepts) < 400:
         raise LCLanguagesError("Snapshot declarado completo tem menos de 400 conceitos.")
+    if expected_concepts is not None and len(concepts) != expected_concepts:
+        raise LCLanguagesError(
+            f"Contagem de conceitos divergente: esperado {expected_concepts}, "
+            f"encontrado {len(concepts)}."
+        )
     unknown_sidecar = (set(mappings) | set(translations)) - seen_uris
     if unknown_sidecar:
         raise LCLanguagesError("Sidecar referencia conceitos ausentes no snapshot.")

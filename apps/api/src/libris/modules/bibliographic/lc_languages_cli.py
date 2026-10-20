@@ -17,7 +17,11 @@ from libris.modules.bibliographic.application.lc_languages import (
     LC_LANGUAGES_VOCABULARY,
     LC_LANGUAGES_XML,
     LC_PROVIDER,
+    LCLanguagesError,
     parse_lc_languages,
+)
+from libris.modules.bibliographic.application.lc_languages_rdf import (
+    parse_lc_languages_rdf,
 )
 from libris.modules.bibliographic.application.vocabulary_catalog import (
     VocabularyCatalogService,
@@ -27,10 +31,14 @@ from libris.modules.bibliographic.application.vocabulary_catalog import (
     VocabularySourceInput,
 )
 from libris.modules.bibliographic.infrastructure.vocabulary_catalog import (
+    VocabularyRecord,
     VocabularyReleaseRecord,
+    VocabularySourceRecord,
 )
 
 MAX_ARTIFACT_BYTES = 10 * 1024 * 1024
+LC_LANGUAGES_LANDING_PAGE = "https://www.loc.gov/marc/languages/"
+SUPPORTED_FORMATS = ("xml", "turtle")
 
 
 def _aware_datetime(value: str) -> datetime:
@@ -40,14 +48,48 @@ def _aware_datetime(value: str) -> datetime:
     return parsed
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("O limite/contagem deve ser um inteiro positivo.")
+    return parsed
+
+
+def _artifact_format(path: Path, requested: str | None) -> str:
+    if requested is not None:
+        return requested
+    suffix = path.suffix.lower()
+    if suffix == ".xml":
+        return "xml"
+    if suffix in {".ttl", ".turtle"}:
+        return "turtle"
+    raise LCLanguagesError("Formato não reconhecido; informe --format xml ou --format turtle.")
+
+
+def _read_artifact(path: Path, max_bytes: int) -> bytes:
+    try:
+        with path.open("rb") as artifact_file:
+            artifact = artifact_file.read(max_bytes + 1)
+    except OSError as error:
+        raise LCLanguagesError(f"Não foi possível ler o artefato local: {path}") from error
+    if not artifact:
+        raise LCLanguagesError("Artefato vazio.")
+    if len(artifact) > max_bytes:
+        raise LCLanguagesError(f"Artefato excede o limite configurado de {max_bytes} bytes.")
+    return artifact
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Opera releases locais de LC Languages.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     prepare = subparsers.add_parser("prepare", help="valida e persiste release candidata")
     prepare.add_argument("artifact", type=Path)
+    prepare.add_argument("--format", choices=SUPPORTED_FORMATS)
     prepare.add_argument("--release-key", required=True)
     prepare.add_argument("--retrieved-at", required=True, type=_aware_datetime)
     prepare.add_argument("--source-version")
+    prepare.add_argument("--expected-concepts", type=_positive_int)
+    prepare.add_argument("--max-bytes", type=_positive_int, default=MAX_ARTIFACT_BYTES)
     prepare.add_argument("--identifiers", type=Path)
     prepare.add_argument("--translations", type=Path)
     prepare.add_argument("--partial-scope")
@@ -66,33 +108,85 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
     database = Database(Settings())
     service = VocabularyCatalogService(database.sessions)
     try:
-        vocabulary = await service.register(
-            VocabularySourceInput(
+        async with database.sessions() as session:
+            existing_vocabulary = await session.scalar(
+                select(VocabularyRecord).where(
+                    VocabularyRecord.uri == LC_LANGUAGES_VOCABULARY
+                )
+            )
+            existing_source = (
+                await session.get(VocabularySourceRecord, existing_vocabulary.source_id)
+                if existing_vocabulary is not None
+                else None
+            )
+        if existing_vocabulary is not None:
+            if (
+                existing_source is None
+                or existing_source.key != "lc-languages"
+                or existing_source.provider_uri != LC_PROVIDER
+            ):
+                raise LCLanguagesError(
+                    "Registro LC Languages existente não corresponde à fonte governada."
+                )
+            source_registration = VocabularySourceInput(
+                key=existing_source.key,
+                provider_uri=existing_source.provider_uri,
+                source_uri=existing_source.source_uri,
+                provenance=existing_source.provenance,
+            )
+        else:
+            source_registration = VocabularySourceInput(
                 key="lc-languages",
                 provider_uri=LC_PROVIDER,
-                source_uri=LC_LANGUAGES_XML,
+                source_uri=LC_LANGUAGES_LANDING_PAGE,
                 provenance={
                     "maintainer": "Library of Congress",
-                    "format": "MARC Code List XML",
+                    "canonical_vocabulary_uri": LC_LANGUAGES_VOCABULARY,
+                    "formats": ["MARC Code List XML", "SKOS/RDF Turtle"],
                     "importer_version": IMPORTER_VERSION,
                     "rights_status": "pending-institutional-review",
                 },
-            ),
+            )
+        vocabulary = await service.register(
+            source_registration,
             VocabularyInput(uri=LC_LANGUAGES_VOCABULARY, status="active"),
             now=getattr(args, "retrieved_at", None) or datetime.now().astimezone(),
         )
         if args.command == "prepare":
-            size = args.artifact.stat().st_size
-            if size <= 0 or size > MAX_ARTIFACT_BYTES:
-                raise ValueError("Artefato vazio ou acima do limite de 10 MiB.")
-            artifact = args.artifact.read_bytes()
+            artifact_format = _artifact_format(args.artifact, args.format)
+            artifact = _read_artifact(args.artifact, args.max_bytes)
             complete = args.partial_scope is None
-            parsed = parse_lc_languages(
-                artifact,
-                identifier_sidecar=args.identifiers,
-                translation_sidecar=args.translations,
-                complete=complete,
-            )
+            if artifact_format == "turtle":
+                parsed = parse_lc_languages_rdf(
+                    artifact,
+                    identifier_sidecar=args.identifiers,
+                    translation_sidecar=args.translations,
+                    complete=complete,
+                    expected_concepts=args.expected_concepts,
+                    max_bytes=args.max_bytes,
+                )
+            else:
+                parsed = parse_lc_languages(
+                    artifact,
+                    identifier_sidecar=args.identifiers,
+                    translation_sidecar=args.translations,
+                    complete=complete,
+                    expected_concepts=args.expected_concepts,
+                )
+            release_provenance: dict[str, object] = {
+                "provider": "Library of Congress",
+                "source_uri": parsed.source_uri,
+                "format": "MARC Code List XML" if parsed.format == "xml" else "SKOS/RDF Turtle",
+                "artifact_filename": args.artifact.name,
+                "sha256": parsed.digest,
+                "retrieved_at": args.retrieved_at.isoformat(),
+                "importer_version": IMPORTER_VERSION,
+                "concept_count": len(parsed.concepts),
+                "rights_status": "pending-institutional-review",
+                "unmapped_rdf_properties": dict(parsed.unmapped_properties),
+            }
+            if parsed.format == "xml":
+                release_provenance["artifact_uri"] = LC_LANGUAGES_XML
             release = await service.import_release(
                 vocabulary.id,
                 VocabularyImport(
@@ -100,8 +194,9 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
                     release=VocabularyReleaseInput(
                         release_key=args.release_key,
                         source_version=args.source_version,
-                        source_uri=LC_LANGUAGES_XML,
+                        source_uri=parsed.source_uri,
                         digest=parsed.digest,
+                        provenance=release_provenance,
                         completeness="complete" if complete else "partial",
                         scope=args.partial_scope,
                         retrieved_at=args.retrieved_at,
@@ -124,6 +219,9 @@ async def _run(args: argparse.Namespace) -> dict[str, object]:
                 "digest": parsed.digest,
                 "concepts": len(parsed.concepts),
                 "source_identifier": parsed.source_identifier,
+                "source_uri": parsed.source_uri,
+                "format": parsed.format,
+                "importer_version": IMPORTER_VERSION,
                 "changes": report.model_dump(mode="json"),
             }
         if args.command == "activate":

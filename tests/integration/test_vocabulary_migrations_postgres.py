@@ -29,7 +29,9 @@ def test_vocabulary_upgrade_constraints_protected_downgrade_and_reupgrade() -> N
     api = Path(__file__).resolve().parents[2] / "apps/api"
     env = os.environ | {"DATABASE_URL": url}
 
-    def alembic(*arguments: str, succeeds: bool = True) -> None:
+    def alembic(
+        *arguments: str, succeeds: bool = True, failure_message: str = ""
+    ) -> None:
         result = subprocess.run(
             [sys.executable, "-m", "alembic", *arguments],
             cwd=api,
@@ -42,7 +44,7 @@ def test_vocabulary_upgrade_constraints_protected_downgrade_and_reupgrade() -> N
             assert result.returncode == 0, result.stdout + result.stderr
         else:
             assert result.returncode != 0
-            assert "Downgrade M08.02 exige" in result.stdout + result.stderr
+            assert failure_message in result.stdout + result.stderr
 
     async def sql(
         statement: str, parameters: dict[str, object] | None = None
@@ -104,9 +106,35 @@ def test_vocabulary_upgrade_constraints_protected_downgrade_and_reupgrade() -> N
         "VALUES (:id,'urn:vocabulary',:source,'external','active',now())",
         {"id": vocabulary_id, "source": source_id},
     )
+    release_id = uuid4()
+    query(
+        "INSERT INTO vocabulary_releases"
+        "(id,vocabulary_id,release_key,source_uri,digest,provenance,completeness,status,"
+        "retrieved_at,created_at) "
+        "VALUES (:id,:vocabulary,'fixture','urn:source',:digest,'{}'::jsonb,"
+        "'complete','candidate',now(),now())",
+        {"id": release_id, "vocabulary": vocabulary_id, "digest": "a" * 64},
+    )
     assert query("SELECT uri,status FROM vocabularies") == [("urn:vocabulary", "active")]
-    alembic("downgrade", "0005_web_auth", succeeds=False)
+    assert query("SELECT provenance FROM vocabulary_releases") == [({},)]
+    alembic(
+        "downgrade",
+        "0005_web_auth",
+        succeeds=False,
+        failure_message="Downgrade M08.02 exige",
+    )
     assert query("SELECT uri,status FROM vocabularies") == [("urn:vocabulary", "active")]
+    query(
+        "UPDATE vocabulary_releases SET provenance='{\"format\":\"SKOS/RDF Turtle\"}'::jsonb"
+    )
+    alembic(
+        "downgrade",
+        "0005_web_auth",
+        succeeds=False,
+        failure_message="Downgrade M08 release provenance exige",
+    )
+    assert query("SELECT count(*) FROM vocabulary_releases") == [(1,)]
+    query("DELETE FROM vocabulary_releases")
     query("DELETE FROM vocabularies")
     query("DELETE FROM vocabulary_sources")
     alembic("downgrade", "0005_web_auth")
