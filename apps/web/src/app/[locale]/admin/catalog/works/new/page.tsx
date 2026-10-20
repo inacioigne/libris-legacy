@@ -7,6 +7,7 @@ import { adminNavigation } from "@/server/admin/navigation";
 import { AdminAccessState, AdminFrame, AdminNavigation } from "@/server/admin/shell";
 import { requestIdentity } from "@/server/auth/request";
 import { createWorkAction, validateWorkAction } from "@/server/catalog/actions";
+import { resolveVocabularyConceptAction, searchVocabularyConceptsAction } from "@/server/catalog/vocabulary-actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,6 +40,8 @@ export default async function NewWorkPage({
                 mode="create"
                 action={createWorkAction}
                 validate={validateWorkAction}
+                searchVocabulary={searchVocabularyConceptsAction}
+                resolveVocabulary={resolveVocabularyConceptAction}
                 cancelHref={`/${locale}/admin/catalog/works`}
               />
             </div>

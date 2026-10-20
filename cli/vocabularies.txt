@@ -1,0 +1,11 @@
+# 1. Preparar a release candidata (Turtle - 485 conceitos)
+docker compose exec api python -m libris.modules.bibliographic.lc_languages_cli prepare \
+  data/vocabularies/lc/languages.skosrdf.ttl \
+  --format turtle \
+  --release-key lc-languages-skos-2026-10 \
+  --retrieved-at 2026-10-19T18:00:00-04:00 \
+  --expected-concepts 485
+
+# 2. Ativar a release no catálogo
+docker compose exec api python -m libris.modules.bibliographic.lc_languages_cli activate \
+  --release-key lc-languages-skos-2026-10

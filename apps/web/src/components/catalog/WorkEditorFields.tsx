@@ -76,17 +76,46 @@ export function ReferenceInput({ reference, onChange, label, path, context }: {
   return <EditorInput label={label} value={reference.uri} onChange={uri => onChange({ ...reference, uri })} path={`${path}/uri`} required context={context} />;
 }
 
-export function WorkEditorFields({ draft, onChange, locale, errors }: {
-  draft: WorkDraft; onChange: (draft: WorkDraft) => void; locale: Locale; errors?: Record<string, string>;
+const defaultSearch: VocabularySearchFn = async () => ({
+  ok: true,
+  page: {
+    order: "uri:asc,concept_id:asc",
+    pagination: { limit: 20, offset: 0, total: 0 },
+    items: [],
+  },
+});
+
+const defaultResolve: VocabularyResolveFn = async () => ({
+  ok: true,
+  state: { kind: "unverified" },
+});
+
+export function WorkEditorFields({ draft, onChange, locale, errors, searchVocabulary = defaultSearch, resolveVocabulary = defaultResolve, disabled }: {
+  draft: WorkDraft;
+  onChange: (draft: WorkDraft) => void;
+  locale: Locale;
+  errors?: Record<string, string>;
+  searchVocabulary?: VocabularySearchFn;
+  resolveVocabulary?: VocabularyResolveFn;
+  disabled?: boolean;
 }) {
   const t = messages[locale];
   const context = { locale, errors };
   return <>
     <TitleFields values={draft.title} onChange={title => onChange({ ...draft, title })} locale={locale} errors={errors} />
     <p id="work-uri-help" className="text-sm">{t.workFormUriHelp}</p>
-    <Rows label={t.workFormLanguageLabel} values={draft.language} onChange={language => onChange({ ...draft, language })} empty={() => ({ uri: "" })} locale={locale}>
-      {(entry, index, change) => <EditorInput label={`${t.workFormLanguageLabel} ${index + 1} (URI)`} value={entry.uri} onChange={uri => change({ ...entry, uri })} path={`/language/${index}/uri`} required context={context} />}
-    </Rows>
+    <VocabularyAutocomplete
+      locale={locale}
+      vocabularyUri={LC_LANGUAGES_VOCABULARY}
+      values={draft.language}
+      onChange={language => onChange({ ...draft, language })}
+      path="/language"
+      errors={errors}
+      search={searchVocabulary}
+      resolve={resolveVocabulary}
+      label={t.workFormLanguageLabel}
+      disabled={disabled}
+    />
     <Rows<WorkDraft["contribution"][number]> label={t.workFormContributorLabel} values={draft.contribution} onChange={contribution => onChange({ ...draft, contribution })} empty={() => ({ agent: { uri: "" }, role: [{ uri: "" }] })} locale={locale}>
       {(entry, index, change) => <>
         <ReferenceInput label={t.workFormContributorAgentLabel} reference={entry.agent} onChange={agent => change({ ...entry, agent })} path={`/contribution/${index}/agent`} context={context} />

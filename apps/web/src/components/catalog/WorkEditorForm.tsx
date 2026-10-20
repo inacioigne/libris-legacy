@@ -6,6 +6,7 @@ import { changedFields, createPayload, draftFromWork, reconcileWork, workPatch, 
 import type { WorkFormState, WorkReloadState } from "../../server/catalog/actions";
 import type { WorkEnvelope } from "../../server/catalog";
 import { buttonClass, WorkEditorFields } from "./WorkEditorFields";
+import type { VocabularyResolveFn, VocabularySearchFn } from "./VocabularyAutocomplete";
 
 type Props = {
   locale: Locale;
@@ -18,9 +19,11 @@ type Props = {
   ifMatch?: string;
   cancelHref: string;
   validate?: (data: FormData) => Promise<WorkFormState>;
+  searchVocabulary?: VocabularySearchFn;
+  resolveVocabulary?: VocabularyResolveFn;
 };
 
-export function WorkEditorForm({ locale, mode, action, reload, work, workId, ifMatch, metadata, cancelHref, validate }: Props) {
+export function WorkEditorForm({ locale, mode, action, reload, work, workId, ifMatch, metadata, cancelHref, validate, searchVocabulary, resolveVocabulary }: Props) {
   const t = messages[locale];
   const [state, formAction, pending] = useActionState(action, { ok: true });
   const [base, setBase] = useState(() => draftFromWork(work));
@@ -139,7 +142,15 @@ export function WorkEditorForm({ locale, mode, action, reload, work, workId, ifM
     </div>}
     <fieldset disabled={busy || Boolean(remote)} className="min-w-0 space-y-6">
       <legend className="sr-only">{t.workEditTitle}</legend>
-      <WorkEditorFields draft={draft} onChange={value => { setDraft(value); setFeedback(undefined); }} locale={locale} errors={result.fieldErrors} />
+      <WorkEditorFields
+        draft={draft}
+        onChange={value => { setDraft(value); setFeedback(undefined); }}
+        locale={locale}
+        errors={result.fieldErrors}
+        searchVocabulary={searchVocabulary}
+        resolveVocabulary={resolveVocabulary}
+        disabled={busy || Boolean(remote)}
+      />
     </fieldset>
     {loaded && <details><summary>{t.workEditorReadOnly}</summary><p>{t.workEditorReadOnlyHelp}</p>
       <pre className="overflow-auto whitespace-pre-wrap break-all text-sm">{JSON.stringify({ content: loaded.content, classification: loaded.classification, related_to: loaded.related_to, translation_of: loaded.translation_of }, null, 2)}</pre>

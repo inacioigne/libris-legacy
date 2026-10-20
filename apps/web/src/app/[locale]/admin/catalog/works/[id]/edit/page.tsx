@@ -9,6 +9,7 @@ import { AdminAccessState, AdminFrame, AdminNavigation } from "@/server/admin/sh
 import { requestIdentity } from "@/server/auth/request";
 import { getWorkForEditor } from "@/server/catalog";
 import { reloadWorkAction, updateWorkAction } from "@/server/catalog/actions";
+import { resolveVocabularyConceptAction, searchVocabularyConceptsAction } from "@/server/catalog/vocabulary-actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,8 +30,8 @@ export default async function EditWorkPage({
         const { work, etag, metadata } = await getWorkForEditor(id);
         return (
           <AdminFrame locale={locale}>
-            <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-              <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} />
+            {/* <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]"> */}
+              {/* <AdminNavigation locale={locale} items={adminNavigation(access.identity.permissions, locale)} /> */}
               <div className="min-w-0">
                 <div className="mb-6 flex items-center justify-between gap-4">
                   <div>
@@ -46,6 +47,8 @@ export default async function EditWorkPage({
                   mode="edit"
                   action={updateWorkAction}
                   reload={reloadWorkAction}
+                  searchVocabulary={searchVocabularyConceptsAction}
+                  resolveVocabulary={resolveVocabularyConceptAction}
                   work={work}
                   metadata={metadata}
                   workId={id}
@@ -53,7 +56,7 @@ export default async function EditWorkPage({
                   cancelHref={`/${locale}/admin/catalog/works/${id}`}
                 />
               </div>
-            </div>
+            {/* </div> */}
           </AdminFrame>
         );
       } catch (error) {
