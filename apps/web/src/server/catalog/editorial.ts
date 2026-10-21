@@ -8,7 +8,7 @@ import {
   type CatalogRequestOptions,
 } from "./index";
 
-export type CatalogCollection = "works" | "instances" | "items";
+export type CatalogCollection = "works" | "instances" | "items" | "agents" | "subjects";
 export type EditorialState = components["schemas"]["EditorialStateRead"];
 export type RevisionPage = components["schemas"]["RevisionPage"];
 export type EventPage = components["schemas"]["EventPage"];
@@ -21,6 +21,9 @@ export interface EditorialDashboard {
   revisions?: RevisionPage;
   audit?: EventPage;
 }
+
+const readPermission = (collection: CatalogCollection) =>
+  collection === "agents" || collection === "subjects" ? "authority:read" as const : "bibliographic:read" as const;
 
 const headersFor = (token: string, requestId: string) => ({
   Authorization: `Bearer ${token}`,
@@ -60,7 +63,7 @@ export async function getEditorialDashboard(
       },
       response: state.response,
     };
-  }, options, "bibliographic:read");
+  }, options, readPermission(collection));
 }
 
 export async function getRevisionDiff(
@@ -73,7 +76,7 @@ export async function getRevisionDiff(
   return executeCatalogRequest(async (client, context) => client.GET(
     "/api/v1/catalog/{collection}/{id}/revisions/compare",
     { params: { path: { collection, id }, query: { previous, current } }, headers: headersFor(context.accessToken, context.requestId) },
-  ), options, "bibliographic:read");
+  ), options, readPermission(collection));
 }
 
 export async function transitionEditorial(
@@ -101,5 +104,5 @@ export async function transitionEditorial(
       error: result.error,
       response: result.response,
     };
-  }, options, "bibliographic:read");
+  }, options, readPermission(collection));
 }

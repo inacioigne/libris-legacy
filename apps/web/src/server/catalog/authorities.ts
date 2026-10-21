@@ -1,9 +1,53 @@
 import "server-only";
+import type { components } from "../../generated/catalogographic-openapi";
 import type { Authority, AuthorityPage, AuthorityType, Link, RelationCollection, RelationEnvelope } from "../../catalog/authorities";
 import { authorityLabel, authorityLinks, referenceKey } from "../../catalog/authorities";
 import { CatalogAccessError, executeCatalogRequest, type CatalogRequestOptions } from "./index";
 
 export type AuthorityQuery = { uri?: string; internal_id?: string; cursor?: string };
+export type AgentEnvelope = { agent: components["schemas"]["AgentRead"]; etag: string | null };
+export type SubjectEnvelope = { subject: components["schemas"]["SubjectRead"]; etag: string | null };
+export async function createAgent(payload: components["schemas"]["AgentCreate"], options: CatalogRequestOptions = {}): Promise<components["schemas"]["AgentRead"]> {
+  return executeCatalogRequest(async (client, context) => client.POST("/api/v1/catalog/agents", {
+    body: payload,
+    headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId },
+  }), options, "authority:manage");
+}
+export async function getAgentForEditor(id: string, options: CatalogRequestOptions = {}): Promise<AgentEnvelope> {
+  return executeCatalogRequest(async (client, context) => {
+    const result = await client.GET("/api/v1/catalog/agents/{id}", {
+      params: { path: { id } },
+      headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private", Accept: "application/json" },
+    });
+    return { ...result, data: result.data ? { agent: result.data, etag: result.response.headers.get("ETag") } : undefined };
+  }, options, "authority:read");
+}
+export async function updateAgent(id: string, payload: components["schemas"]["AgentUpdate"], options: CatalogRequestOptions = {}): Promise<AgentEnvelope> {
+  const ifMatch = options.ifMatch;
+  if (!ifMatch?.trim()) throw new CatalogAccessError(428, "precondition_failed");
+  return executeCatalogRequest(async (client, context) => {
+    const result = await client.PATCH("/api/v1/catalog/agents/{id}", {
+      params: { path: { id }, header: { "if-match": ifMatch } }, body: payload,
+      headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private", Accept: "application/json" },
+    });
+    return { ...result, data: result.data ? { agent: result.data, etag: result.response.headers.get("ETag") } : undefined };
+  }, options, "authority:manage");
+}
+export async function createSubject(payload: components["schemas"]["SubjectCreate"], options: CatalogRequestOptions = {}): Promise<components["schemas"]["SubjectRead"]> {
+  return executeCatalogRequest(async (client, context) => client.POST("/api/v1/catalog/subjects", { body: payload,
+    headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId } }), options, "authority:manage");
+}
+export async function getSubjectForEditor(id: string, options: CatalogRequestOptions = {}): Promise<SubjectEnvelope> {
+  return executeCatalogRequest(async (client, context) => { const result = await client.GET("/api/v1/catalog/subjects/{id}", { params: { path: { id } },
+    headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private", Accept: "application/json" } });
+    return { ...result, data: result.data ? { subject: result.data, etag: result.response.headers.get("ETag") } : undefined }; }, options, "authority:read");
+}
+export async function updateSubject(id: string, payload: components["schemas"]["SubjectUpdate"], options: CatalogRequestOptions = {}): Promise<SubjectEnvelope> {
+  if (!options.ifMatch?.trim()) throw new CatalogAccessError(428, "precondition_failed");
+  return executeCatalogRequest(async (client, context) => { const result = await client.PATCH("/api/v1/catalog/subjects/{id}", { params: { path: { id }, header: { "if-match": options.ifMatch! } }, body: payload,
+    headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private", Accept: "application/json" } });
+    return { ...result, data: result.data ? { subject: result.data, etag: result.response.headers.get("ETag") } : undefined }; }, options, "authority:manage");
+}
 export async function listAuthorities(type: AuthorityType, query: AuthorityQuery = {}, options: CatalogRequestOptions = {}): Promise<AuthorityPage> {
   const search = Object.fromEntries(Object.entries({ uri: query.uri, internal_id: query.internal_id, cursor: query.cursor, limit: 20 }).filter(([, value]) => value !== undefined && value !== ""));
   return executeCatalogRequest(async (client, context) => client.GET(type === "Agent" ? "/api/v1/catalog/agents" : "/api/v1/catalog/subjects", {

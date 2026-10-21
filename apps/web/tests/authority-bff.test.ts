@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CatalogAccessError } from "../src/server/catalog";
-import { changeAuthorityRelation, getAuthority, getAuthorityRelations, listAuthorities } from "../src/server/catalog/authorities";
+import { changeAuthorityRelation, createAgent, createSubject, getAgentForEditor, getAuthority, getAuthorityRelations, getSubjectForEditor, listAuthorities, updateAgent, updateSubject } from "../src/server/catalog/authorities";
 import { authorityReference, referenceKey, sameLink, selectedLink } from "../src/catalog/authorities";
 import { AuthService } from "../src/server/auth/service";
 import { OpenIdProvider } from "../src/server/auth/oidc";
@@ -17,6 +17,81 @@ async function fixture(permissions = ["bibliographic:read", "bibliographic:updat
 }
 const link = selectedLink(initialRelations.relations.source, agent, ["urn:role:author", "urn:role:editor"]);
 const id = initialRelations.relations.source.internal_id!;
+
+test("Agent creation uses generated POST, exact payload, server Bearer and manage-only permission", async t => {
+  const options = await fixture(["authority:manage"]);
+  const payload = { kind: "Person" as const, authorized_name: [{ value: "Alex", language: "pt" }],
+    variant_name: [{ value: "Alexandre", language: "pt" }], identified_by: [{ kind: "Local" as const, value: "AUTH-1", source: [{ uri: "urn:source:local" }] }],
+    provenance: [{ uri: "urn:source:test" }], external_reference: [{ uri: "urn:external:1" }], related_authority: [{ uri: "urn:agent:2" }] };
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (request: Request) => {
+    calls++;
+    assert.equal(request.method, "POST");
+    assert.equal(new URL(request.url).pathname, "/api/v1/catalog/agents");
+    assert.equal(request.headers.get("authorization"), "Bearer synthetic-secret");
+    assert.equal(request.cache, "no-store");
+    assert.ok(request.headers.get("x-request-id"));
+    assert.equal(request.headers.get("if-match"), null);
+    assert.deepEqual(await request.json(), payload);
+    return new Response(JSON.stringify({ ...agent, ...payload }), { status: 201, headers: { "Content-Type": "application/json" } });
+  });
+  const saved = await createAgent(payload, options);
+  assert.equal(saved.internal_id, agent.internal_id);
+  assert.equal(saved.uri, agent.uri);
+  assert.doesNotMatch(JSON.stringify(saved), /synthetic-secret|Bearer|csrf/);
+  assert.equal(calls, 1);
+});
+
+test("Agent creation rejects cataloger and missing session before POST", async t => {
+  t.mock.method(globalThis, "fetch", async () => { throw new Error("Unexpected POST"); });
+  const payload = { kind: "Person" as const, authorized_name: [{ value: "Alex" }] };
+  const options = await fixture();
+  await assert.rejects(createAgent(payload, options), (e: unknown) => e instanceof CatalogAccessError && e.status === 403);
+  await assert.rejects(createAgent(payload, { ...options, sessionId: "missing" }), (e: unknown) => e instanceof CatalogAccessError && e.status === 401);
+});
+
+for (const status of [401, 403, 409, 422, 503]) test(`Agent POST preserves HTTP ${status} and never retries`, async t => {
+  const options = await fixture(["authority:manage"]);
+  let calls = 0;
+  const problem = { status, code: "schema.invalid", issues: [{ message: "Invalid name" }] };
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return new Response(JSON.stringify(problem), { status, headers: { "Content-Type": "application/problem+json" } });
+  });
+  await assert.rejects(createAgent({ kind: "Person", authorized_name: [{ value: "Alex" }] }, options), (e: unknown) => e instanceof CatalogAccessError && e.status === status && e.detail !== undefined);
+  assert.equal(calls, 1);
+});
+
+test("Agent editor reads and updates through the generated endpoints with an exact ETag", async t => {
+  const options = await fixture(["authority:manage", "authority:read", "metadata_revision:read"]);
+  const requests: Request[] = [];
+  t.mock.method(globalThis, "fetch", async (request: Request) => {
+    requests.push(request.clone());
+    const updated = { ...agent, authorized_name: [{ value: request.method === "PATCH" ? "Alex updated" : "Alex" }] };
+    return new Response(JSON.stringify(updated), { headers: { "Content-Type": "application/json", ETag: request.method === "PATCH" ? '"r2"' : '"r1"' } });
+  });
+  const loaded = await getAgentForEditor(agent.internal_id, options);
+  assert.equal(loaded.etag, '"r1"');
+  const saved = await updateAgent(agent.internal_id, { authorized_name: [{ value: "Alex updated" }] }, { ...options, ifMatch: loaded.etag! });
+  assert.equal(saved.agent.authorized_name[0].value, "Alex updated");
+  assert.equal(saved.etag, '"r2"');
+  assert.equal(requests[1].method, "PATCH");
+  assert.equal(requests[1].headers.get("if-match"), '"r1"');
+  assert.deepEqual(await requests[1].json(), { authorized_name: [{ value: "Alex updated" }] });
+  await assert.rejects(updateAgent(agent.internal_id, {}, options), (error: unknown) => error instanceof CatalogAccessError && error.status === 428);
+  assert.equal(requests.length, 2);
+});
+
+test("Subject create/read/update use authority permissions and exact ETags", async t => {
+  const options = await fixture(["authority:manage", "authority:read", "metadata_revision:read"]), requests: Request[] = [];
+  t.mock.method(globalThis, "fetch", async (request: Request) => { requests.push(request.clone()); return new Response(JSON.stringify(subject), { status: request.method === "POST" ? 201 : 200, headers: { "Content-Type": "application/json", ETag: request.method === "PATCH" ? '"s2"' : '"s1"' } }); });
+  const payload = { preferred_label: [{ value: "Libraries" }], scheme: [{ uri: "urn:scheme:test" }] };
+  await createSubject(payload, options);
+  const loaded = await getSubjectForEditor(subject.internal_id, options); assert.equal(loaded.etag, '"s1"');
+  const saved = await updateSubject(subject.internal_id, { alternative_label: [{ value: "Library science" }] }, { ...options, ifMatch: loaded.etag! });
+  assert.equal(saved.etag, '"s2"'); assert.equal(requests[2].headers.get("if-match"), '"s1"');
+  assert.deepEqual(await requests[2].json(), { alternative_label: [{ value: "Library science" }] });
+});
 
 test("Authority listing uses both generated endpoints, supported exact filters and opaque cursors", async t => {
   const options = await fixture(), requests: Request[] = [];

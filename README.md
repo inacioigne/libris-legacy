@@ -1,5 +1,19 @@
 # Libris
 
+O cadastro administrativo de Agent em `/pt/admin/authority/new` e
+`/en/admin/authority/new` utiliza o POST catalográfico existente, com
+`authority:manage`, formulário multilíngue e confirmação da identidade gerada
+pela API. Consulte o [escopo e as evidências datadas](docs/architecture/agent-create-verification-2026-10-20.md)
+para campos disponíveis, verificações e limites de integração.
+A consulta agora conduz ao detalhe e à edição protegida por ETag, e o detalhe
+expõe o ciclo editorial real de Agent para submissão, aprovação e publicação
+conforme as permissões efetivas. Consulte a
+[verificação complementar](docs/architecture/agent-editorial-verification-2026-10-20.md).
+O mesmo fluxo administrativo está disponível para Subject em
+`/{locale}/admin/authority/subjects`, com criação, edição protegida por ETag e
+governança editorial. Consulte as
+[evidências e limites](docs/architecture/subject-editorial-verification-2026-10-20.md).
+
 A M08.04 expõe a [API autenticada de vocabulários](docs/architecture/vocabulary-api-m0804.md):
 busca local paginada, detalhes e validação offline sobre releases ativas ou históricas
 explicitamente selecionadas. A API não acessa provedores remotos nem Elasticsearch;

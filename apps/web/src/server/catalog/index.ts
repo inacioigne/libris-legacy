@@ -33,6 +33,7 @@ export interface ListWorksQuery {
 }
 
 export type CatalogPermission =
+  | "authority:manage"
   | "authority:read"
   | "bibliographic:read"
   | "bibliographic:create"
@@ -92,6 +93,8 @@ function hasPermission(identity: Identity, required: readonly string[]): boolean
 
 export function catalogPermissionSet(permission: CatalogPermission): readonly string[] {
   switch (permission) {
+    case "authority:manage":
+      return ["authority:manage"];
     case "authority:read":
       return ["authority:read", "metadata_revision:read"];
     case "vocabulary:read":
