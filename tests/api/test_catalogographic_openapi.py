@@ -33,7 +33,7 @@ from test_catalogographic_http import actor
 
 ROOT = Path(__file__).parents[2]
 SCRIPT = ROOT / "scripts/generate_catalogographic_openapi.py"
-BASELINE = ROOT / "docs/architecture/catalogographic-openapi-v1-m0804.json"
+BASELINE = ROOT / "docs/architecture/catalogographic-openapi-v2-workspace.json"
 spec = importlib.util.spec_from_file_location("openapi_generator", SCRIPT)
 assert spec and spec.loader
 generator = importlib.util.module_from_spec(spec)

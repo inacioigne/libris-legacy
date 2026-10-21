@@ -14,6 +14,7 @@ export type RevisionPage = components["schemas"]["RevisionPage"];
 export type EventPage = components["schemas"]["EventPage"];
 export type SemanticDiff = components["schemas"]["SemanticDiff"];
 export type EditorialAction = "submit" | "return" | "approve" | "publish" | "withdraw" | "republish" | "archive";
+export type WorkspaceCollection = "works" | "instances" | "items";
 
 export interface EditorialDashboard {
   state: EditorialState;
@@ -105,4 +106,31 @@ export async function transitionEditorial(
       response: result.response,
     };
   }, options, readPermission(collection));
+}
+
+export async function validateWorkspace(
+  collection: WorkspaceCollection, id: string, ifMatch: string,
+  options: CatalogRequestOptions = {},
+): Promise<components["schemas"]["WorkspaceValidationRead"]> {
+  if (!ifMatch.trim()) throw new CatalogAccessError(428, "precondition_failed");
+  await requireCatalogMutationOrigin(options);
+  return executeCatalogRequest(async (client, context) => client.POST(
+    "/api/v1/catalog/{collection}/{id}/workspace/validate",
+    { params: { path: { collection, id }, header: { "if-match": ifMatch } }, headers: headersFor(context.accessToken, context.requestId) },
+  ), options, "bibliographic:update");
+}
+
+export async function publishWorkspace(
+  collection: WorkspaceCollection, id: string, ifMatch: string,
+  options: CatalogRequestOptions = {},
+): Promise<{ state: EditorialState; etag: string | null }> {
+  if (!ifMatch.trim()) throw new CatalogAccessError(428, "precondition_failed");
+  await requireCatalogMutationOrigin(options);
+  return executeCatalogRequest(async (client, context) => {
+    const result = await client.POST("/api/v1/catalog/{collection}/{id}/workspace/publish", {
+      params: { path: { collection, id }, header: { "if-match": ifMatch } },
+      headers: headersFor(context.accessToken, context.requestId),
+    });
+    return { data: result.data ? { state: result.data, etag: result.response.headers.get("ETag") } : undefined, error: result.error, response: result.response };
+  }, options, "bibliographic:update");
 }

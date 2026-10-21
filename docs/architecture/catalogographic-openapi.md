@@ -1,6 +1,7 @@
 # Baseline OpenAPI operacional v1
 
-O snapshot operacional atual é [M08.04](catalogographic-openapi-v1-m0804.json), com
+O snapshot histórico v1 é [M08.04](catalogographic-openapi-v1-m0804.json). O contrato
+operacional corrente é o [workspace v2](catalogographic-openapi-v2-workspace.json), com
 as rotas reais de vocabulários, catálogo, identidade e health produzidas pela fábrica
 FastAPI. O snapshot original [M06.01](catalogographic-openapi-v1.json) permanece
 inalterado como evidência histórica.

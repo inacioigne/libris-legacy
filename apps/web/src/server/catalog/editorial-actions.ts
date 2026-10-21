@@ -2,7 +2,7 @@
 
 import { messages, type Locale } from "../../i18n/messages";
 import { CatalogAccessError } from "./index";
-import { getEditorialDashboard, getRevisionDiff, transitionEditorial, type CatalogCollection, type EditorialAction } from "./editorial";
+import { getEditorialDashboard, getRevisionDiff, publishWorkspace, transitionEditorial, validateWorkspace, type CatalogCollection, type EditorialAction, type WorkspaceCollection } from "./editorial";
 
 export type EditorialResult = { ok: boolean; status?: number; message?: string; dashboard?: Awaited<ReturnType<typeof getEditorialDashboard>>; diff?: Awaited<ReturnType<typeof getRevisionDiff>> };
 
@@ -31,5 +31,19 @@ export async function editorialTransitionAction(collection: CatalogCollection, i
   try {
     await transitionEditorial(collection, id, action, { selected_revision: selectedRevision, scope, justification: justification || null }, ifMatch);
     return { ok: true, message: messages[locale].editorialTransitionSuccess, dashboard: await getEditorialDashboard(collection, id, permissions) };
+  } catch (error) { return failure(error, locale); }
+}
+
+export async function validateWorkspaceAction(collection: WorkspaceCollection, id: string, locale: Locale, ifMatch: string): Promise<EditorialResult> {
+  try {
+    const result = await validateWorkspace(collection, id, ifMatch);
+    return { ok: result.ready, message: messages[locale].workspaceValid };
+  } catch (error) { return failure(error, locale); }
+}
+
+export async function publishWorkspaceAction(collection: WorkspaceCollection, id: string, permissions: string[], locale: Locale, ifMatch: string): Promise<EditorialResult> {
+  try {
+    await publishWorkspace(collection, id, ifMatch);
+    return { ok: true, message: messages[locale].workspacePublished, dashboard: await getEditorialDashboard(collection, id, permissions) };
   } catch (error) { return failure(error, locale); }
 }

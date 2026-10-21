@@ -30,6 +30,7 @@ from libris.modules.bibliographic.domain.editorial import (
     PreparedTransition,
     PublicationReadiness,
     prepare_transition,
+    prepare_workspace_publish,
     transition_operation,
 )
 from libris.modules.bibliographic.domain.errors import CatalogCode as C
@@ -212,6 +213,74 @@ class EditorialService:
     ) -> None:
         self.authorization = authorization or AuthorizationGuard()
         self.transactions = transactions
+
+    async def validate_workspace(
+        self,
+        identifier: UUID,
+        *,
+        context: ExecutionContext,
+        expected_version: int,
+        expected_current_revision: int,
+    ) -> PublicationReadiness:
+        resolved = execution_context(context, None)
+        try:
+            self.authorization.require(
+                context=resolved,
+                operation=Operation.CATALOG_WORKSPACE_VALIDATE,
+                resource=ResourceContext(ResourceKind.BIBLIOGRAPHIC, resource_id=identifier),
+            )
+        except PermissionDenied as error:
+            raise EditorialPermissionDenied() from error
+        if not isinstance(resolved, HumanContext):
+            raise PermissionDenied("Validação do workspace exige humano.")
+        async with self.transactions() as transaction:
+            record = await transaction.read(identifier)
+            record.require_expected(expected_version, expected_current_revision)
+            return await publication_readiness(
+                record,
+                record.current_revision,
+                await transaction.publication_context(identifier, record.current_revision),
+            )
+
+    async def publish_workspace(
+        self,
+        identifier: UUID,
+        *,
+        context: ExecutionContext,
+        expected_version: int,
+        expected_current_revision: int,
+    ) -> PreparedTransition:
+        resolved = execution_context(context, None)
+        try:
+            self.authorization.require(
+                context=resolved,
+                operation=Operation.CATALOG_WORKSPACE_PUBLISH,
+                resource=ResourceContext(ResourceKind.BIBLIOGRAPHIC, resource_id=identifier),
+            )
+        except PermissionDenied as error:
+            raise EditorialPermissionDenied() from error
+        if not isinstance(resolved, HumanContext):
+            raise PermissionDenied("Publicação do workspace exige humano.")
+        actor = resolved.actor
+        audit_actor(actor)
+        async with self.transactions() as transaction:
+            record = await transaction.read(identifier)
+            record.require_expected(expected_version, expected_current_revision)
+            readiness = await publication_readiness(
+                record,
+                record.current_revision,
+                await transaction.publication_context(identifier, record.current_revision),
+            )
+            change = prepare_workspace_publish(
+                record,
+                expected_version=expected_version,
+                expected_current_revision=expected_current_revision,
+                actor_id=actor.actor_id,
+                occurred_at=datetime.now(UTC),
+                readiness=readiness,
+            )
+            await transaction.compare_and_set(change)
+        return change
 
     async def transition(
         self,

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { messages, type Locale } from "../../i18n/messages";
-import type { CatalogCollection, EditorialDashboard, EditorialAction, SemanticDiff } from "../../server/catalog/editorial";
-import { compareRevisionsAction, editorialTransitionAction, refreshEditorialAction } from "../../server/catalog/editorial-actions";
+import type { CatalogCollection, EditorialDashboard, EditorialAction, SemanticDiff, WorkspaceCollection } from "../../server/catalog/editorial";
+import { compareRevisionsAction, editorialTransitionAction, publishWorkspaceAction, refreshEditorialAction, validateWorkspaceAction } from "../../server/catalog/editorial-actions";
 
 type Props = { collection: CatalogCollection; id: string; locale: Locale; permissions: string[]; initial: EditorialDashboard };
 
@@ -34,9 +34,13 @@ export function EditorialPanel({ collection, id, locale, permissions, initial }:
   const [diff, setDiff] = useState<SemanticDiff>();
   const [compareTo, setCompareTo] = useState<number | undefined>();
   const state = dashboard.state;
+  const isWorkspace = collection === "works" || collection === "instances" || collection === "items";
+  const workspaceCollection = collection as WorkspaceCollection;
   const currentRevision = state.candidate_revision ?? state.current_revision;
   const scope = state.candidate_revision === currentRevision && state.public_revision !== currentRevision ? "candidate" : "record";
-  const actions = (Object.keys(permission) as EditorialAction[]).filter(action => permissions.includes(permission[action]) && permitted(state, action));
+  const actions = isWorkspace ? [] : (Object.keys(permission) as EditorialAction[]).filter(action => permissions.includes(permission[action]) && permitted(state, action));
+  const workspaceDraft = state.candidate_state === "draft" || state.editorial_state === "draft";
+  const canUseWorkspace = isWorkspace && workspaceDraft && permissions.includes("bibliographic:update");
 
   async function refresh() {
     setBusy(true); setFeedback(undefined);
@@ -62,6 +66,18 @@ export function EditorialPanel({ collection, id, locale, permissions, initial }:
     setFeedback(result.message);
     setBusy(false);
   }
+  async function validateDraft() {
+    setBusy(true); setFeedback(undefined);
+    const result = await validateWorkspaceAction(workspaceCollection, id, locale, dashboard.etag ?? "");
+    setFeedback(result.message); setBusy(false);
+  }
+  async function publishDraft() {
+    if (!window.confirm(t.editorialConfirm)) return;
+    setBusy(true); setFeedback(undefined);
+    const result = await publishWorkspaceAction(workspaceCollection, id, permissions, locale, dashboard.etag ?? "");
+    if (result.dashboard) setDashboard(result.dashboard);
+    setFeedback(result.message); setBusy(false);
+  }
 
   return <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900" aria-busy={busy}>
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">{t.editorial}</h2>
@@ -75,6 +91,12 @@ export function EditorialPanel({ collection, id, locale, permissions, initial }:
       <div><dt>{t.editorialPublicRevision}</dt><dd>{state.public_revision ?? "—"}</dd></div>
     </dl>
     {feedback && <p role="status" className="rounded-lg border p-3">{feedback}</p>}
+
+    {canUseWorkspace && <div className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t.editorialActions}</h3>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={busy} onClick={validateDraft} className="rounded-lg border border-teal-700 px-3 py-2 text-teal-800 disabled:opacity-50 dark:text-teal-200">{t.workspaceValidate}</button>
+        <button type="button" disabled={busy} onClick={publishDraft} className="rounded-lg bg-teal-700 px-3 py-2 text-white disabled:opacity-50">{t.workspacePublish}</button>
+      </div><p className="text-sm">{t.workspaceActionHelp}</p></div>}
 
     {actions.length > 0 && <div className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t.editorialActions}</h3>
       {actions.some(action => requiresReason.has(action)) && <label className="block text-sm">{t.editorialReason}<textarea value={reason} onChange={event => setReason(event.target.value)} className="mt-1 block w-full rounded border p-2" rows={2} /></label>}

@@ -1,6 +1,6 @@
 """Explicit editorial commands and authorized historical queries for catalog v1."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request, Response
@@ -23,6 +23,7 @@ from libris.modules.bibliographic.api.schemas.editorial import (
     RestoreRequest,
     RevisionPage,
     TransitionRequest,
+    WorkspaceValidationRead,
 )
 from libris.modules.bibliographic.application.catalog import CatalogService
 from libris.modules.bibliographic.application.catalog_editorial import (
@@ -46,6 +47,7 @@ router = APIRouter(route_class=BoundedCatalogRoute, tags=["catalog-editorial"])
 Context = Annotated[HumanContext, Depends(get_execution_context)]
 IfMatch = Annotated[str, Depends(get_if_match)]
 Positive = Annotated[int, Query(gt=0)]
+WorkspaceCollection = Literal["works", "instances", "items"]
 
 
 def get_editorial_service(
@@ -124,6 +126,56 @@ async def command(
         payload.justification,
         context,
     )
+    response.headers["ETag"] = editing_etag(changed.catalog)
+    return state_read(changed)
+
+
+@router.post(
+    "/{collection}/{id}/workspace/validate",
+    response_model=WorkspaceValidationRead,
+    summary="Validate the current cataloging draft for publication",
+)
+async def validate_workspace(
+    collection: WorkspaceCollection,
+    id: UUID,
+    service: Service,
+    context: Context,
+    if_match: IfMatch,
+) -> WorkspaceValidationRead:
+    view = await service.observe(
+        id,
+        profile_for(collection),
+        COLLECTIONS[collection][2],
+        context,
+        Operation.CATALOG_WORKSPACE_VALIDATE,
+    )
+    require_if_match(if_match, current_etag=editing_etag(view.catalog))
+    revision_number = await service.validate_workspace(view, context)
+    return WorkspaceValidationRead(revision=revision_number)
+
+
+@router.post(
+    "/{collection}/{id}/workspace/publish",
+    response_model=EditorialStateRead,
+    summary="Validate and publish the current cataloging draft",
+)
+async def publish_workspace(
+    collection: WorkspaceCollection,
+    id: UUID,
+    response: Response,
+    service: Service,
+    context: Context,
+    if_match: IfMatch,
+) -> EditorialStateRead:
+    view = await service.observe(
+        id,
+        profile_for(collection),
+        COLLECTIONS[collection][2],
+        context,
+        Operation.CATALOG_WORKSPACE_PUBLISH,
+    )
+    require_if_match(if_match, current_etag=editing_etag(view.catalog))
+    changed = await service.publish_workspace(view, context)
     response.headers["ETag"] = editing_etag(changed.catalog)
     return state_read(changed)
 

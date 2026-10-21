@@ -132,6 +132,48 @@ class CatalogEditorialService(CatalogService):
             change.after,
         )
 
+    def workspace_transactions(
+        self, context: HumanContext, process: str
+    ) -> PostgresEditorialTransactions:
+        return PostgresEditorialTransactions(
+            self.sessions,
+            actor=context.actor,
+            provenance=Provenance("catalog", process),
+        )
+
+    async def validate_workspace(
+        self, expected: EditorialView, context: HumanContext
+    ) -> int:
+        identifier = expected.catalog.revision.identity.internal_id
+        readiness = await EditorialService(
+            self.workspace_transactions(context, "http:workspace:validate"),
+            authorization=self.authorization,
+        ).validate_workspace(
+            identifier,
+            context=context,
+            expected_version=expected.catalog.editorial_version or 1,
+            expected_current_revision=expected.catalog.revision.number,
+        )
+        return readiness.revision
+
+    async def publish_workspace(
+        self, expected: EditorialView, context: HumanContext
+    ) -> EditorialView:
+        identifier = expected.catalog.revision.identity.internal_id
+        change = await EditorialService(
+            self.workspace_transactions(context, "http:workspace:publish"),
+            authorization=self.authorization,
+        ).publish_workspace(
+            identifier,
+            context=context,
+            expected_version=expected.catalog.editorial_version or 1,
+            expected_current_revision=expected.catalog.revision.number,
+        )
+        return EditorialView(
+            CatalogView(expected.catalog.revision, expected.catalog.resource, change.after.version),
+            change.after,
+        )
+
     async def public_view(self, identifier: UUID, model: type[ResourceRead]) -> CatalogView:
         try:
             selected = await self.read_public(identifier)

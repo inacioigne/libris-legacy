@@ -46,6 +46,11 @@ class EditorialStateRead(PublicContract):
     editorial_version: int | None
 
 
+class WorkspaceValidationRead(PublicContract):
+    ready: bool = True
+    revision: int = Field(gt=0, strict=True)
+
+
 class EventCursor(PublicContract):
     occurred_at: AwareDatetime
     event_id: UUID

@@ -149,6 +149,16 @@ def test_editorial_openapi_contract() -> None:
     paths = schema["paths"]
     base = "/api/v1/catalog/{collection}/{id}"
     assert "security" not in paths[base + "/public"]["get"]
+    for action in ("validate", "publish"):
+        workspace = paths[base + "/workspace/" + action]["post"]
+        assert workspace["security"] == [{"HTTPBearer": []}]
+        assert any(p["name"] == "if-match" for p in workspace["parameters"])
+        collection_parameter = next(
+            parameter for parameter in workspace["parameters"] if parameter["name"] == "collection"
+        )
+        assert set(collection_parameter["schema"]["enum"]) == {
+            "works", "instances", "items"
+        }
     for command in COMMANDS:
         op = paths[base + "/editorial/" + command]["post"]
         assert op["security"] == [{"HTTPBearer": []}]

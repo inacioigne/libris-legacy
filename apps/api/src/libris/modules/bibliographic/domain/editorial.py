@@ -272,6 +272,54 @@ def prepare_transition(
     return PreparedTransition(record, after, event)
 
 
+def prepare_workspace_publish(
+    record: EditorialRecord,
+    *,
+    expected_version: int,
+    expected_current_revision: int,
+    actor_id: str,
+    occurred_at: datetime,
+    readiness: PublicationReadiness,
+) -> PreparedTransition:
+    """Publish the current draft as one workspace action.
+
+    The public contract intentionally has no submit/approve stages. Historical
+    records in intermediate legacy states must finish through the legacy API
+    before they can enter the workspace flow again.
+    """
+    record.require_expected(expected_version, expected_current_revision)
+    scope = EditorialScope.CANDIDATE if record.candidate_state else EditorialScope.RECORD
+    source = record.source(scope)
+    if source != S.DRAFT:
+        raise CatalogError(C.TRANSITION_FORBIDDEN, "Workspace só publica um rascunho.")
+    if not actor_id.strip() or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+        raise CatalogError(C.EDITORIAL_PRECONDITION, "Ator e instante com timezone obrigatórios.")
+    if readiness.identity != record.identity or readiness.revision != record.current_revision:
+        raise CatalogError(C.APPROVAL_STALE, "Validação não corresponde ao rascunho corrente.")
+    after = replace(
+        record,
+        version=record.version + 1,
+        editorial_state=S.PUBLISHED,
+        candidate_state=None,
+        approved_revision=record.current_revision,
+        published_revision=record.current_revision,
+    )
+    event = PreparedEditorialEvent(
+        record.identity,
+        source,
+        S.PUBLISHED,
+        Op.PUBLISH,
+        scope,
+        actor_id,
+        occurred_at,
+        record.current_revision,
+        record.version,
+        record.version + 1,
+        None,
+    )
+    return PreparedTransition(record, after, event)
+
+
 def prepare_content_revision(
     record: EditorialRecord,
     revision: Revision,

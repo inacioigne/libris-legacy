@@ -29,6 +29,7 @@ from libris.modules.bibliographic.domain.editorial import (
     PublicationReadiness,
     prepare_content_revision,
     prepare_transition,
+    prepare_workspace_publish,
 )
 from libris.modules.bibliographic.domain.editorial import (
     EditorialState as S,
@@ -138,6 +139,49 @@ def test_initial_draft_and_unknown_states() -> None:
             else:
                 transition(initial, target)
         assert error.value.code == C.EDITORIAL_STATE_INVALID
+
+
+def test_workspace_publishes_validated_draft_without_intermediate_states() -> None:
+    before = record()
+    change = prepare_workspace_publish(
+        before,
+        expected_version=1,
+        expected_current_revision=1,
+        actor_id="actor",
+        occurred_at=NOW,
+        readiness=PublicationReadiness(before.identity, 1, INSTITUTIONAL_PROFILE_ID),
+    )
+    assert change.after.editorial_state == S.PUBLISHED
+    assert change.after.approved_revision == 1
+    assert change.after.published_revision == 1
+    assert change.after.public_revision == 1
+    assert change.after.version == 2
+    assert change.event.previous_state == S.DRAFT
+    assert change.event.next_state == S.PUBLISHED
+
+
+def test_workspace_refuses_unvalidated_revision_and_legacy_intermediate_state() -> None:
+    draft = record()
+    with pytest.raises(CatalogError) as mismatch:
+        prepare_workspace_publish(
+            draft,
+            expected_version=1,
+            expected_current_revision=1,
+            actor_id="actor",
+            occurred_at=NOW,
+            readiness=PublicationReadiness(draft.identity, 2, INSTITUTIONAL_PROFILE_ID),
+        )
+    assert mismatch.value.code == C.APPROVAL_STALE
+    with pytest.raises(CatalogError) as intermediate:
+        prepare_workspace_publish(
+            record(S.IN_REVIEW),
+            expected_version=1,
+            expected_current_revision=1,
+            actor_id="actor",
+            occurred_at=NOW,
+            readiness=PublicationReadiness(draft.identity, 1, INSTITUTIONAL_PROFILE_ID),
+        )
+    assert intermediate.value.code == C.TRANSITION_FORBIDDEN
 
 
 @pytest.mark.parametrize(

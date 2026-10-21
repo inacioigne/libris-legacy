@@ -20,6 +20,8 @@ class Operation(StrEnum):
     BIBLIOGRAPHIC_READ_EDITORIAL = "bibliographic.read_editorial"
     BIBLIOGRAPHIC_CREATE = "bibliographic.create"
     BIBLIOGRAPHIC_UPDATE = "bibliographic.update"
+    CATALOG_WORKSPACE_VALIDATE = "catalog_workspace.validate"
+    CATALOG_WORKSPACE_PUBLISH = "catalog_workspace.publish"
     BIBLIOGRAPHIC_DELETE = "bibliographic.delete"
     AUTHORITY_READ_PUBLIC = "authority.read_public"
     AUTHORITY_READ_EDITORIAL = "authority.read_editorial"
@@ -71,6 +73,8 @@ POLICIES = MappingProxyType(
         ),
         Op.BIBLIOGRAPHIC_CREATE: _policy(K.BIBLIOGRAPHIC, P.BIBLIOGRAPHIC_CREATE, technical=True),
         Op.BIBLIOGRAPHIC_UPDATE: _policy(K.BIBLIOGRAPHIC, P.BIBLIOGRAPHIC_UPDATE, technical=True),
+        Op.CATALOG_WORKSPACE_VALIDATE: _policy(K.BIBLIOGRAPHIC, P.BIBLIOGRAPHIC_UPDATE),
+        Op.CATALOG_WORKSPACE_PUBLISH: _policy(K.BIBLIOGRAPHIC, P.BIBLIOGRAPHIC_UPDATE),
         Op.BIBLIOGRAPHIC_DELETE: _policy(K.BIBLIOGRAPHIC, P.BIBLIOGRAPHIC_DELETE),
         Op.AUTHORITY_MANAGE: _policy(K.AUTHORITY, P.AUTHORITY_MANAGE, technical=True),
         Op.METADATA_REVISION_READ: _policy(K.METADATA, P.METADATA_REVISION_READ, technical=True),

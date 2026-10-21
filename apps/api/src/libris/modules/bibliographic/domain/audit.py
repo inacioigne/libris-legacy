@@ -132,7 +132,6 @@ class AuditEvent:
         transitions = {
             AuditEventType.SUBMITTED: (EditorialState.DRAFT, EditorialState.IN_REVIEW),
             AuditEventType.APPROVED: (EditorialState.IN_REVIEW, EditorialState.APPROVED),
-            AuditEventType.PUBLISHED: (EditorialState.APPROVED, EditorialState.PUBLISHED),
             AuditEventType.WITHDRAWN: (EditorialState.PUBLISHED, EditorialState.WITHDRAWN),
         }
         transitions[AuditEventType.ARCHIVED] = (EditorialState.WITHDRAWN, EditorialState.ARCHIVED)
@@ -141,6 +140,10 @@ class AuditEvent:
                 raise ValueError("Devolução exige revisão/aprovação anterior.")
             transitions[AuditEventType.RETURNED] = (self.previous_state, EditorialState.DRAFT)
         pair = transitions.get(self.event_type)
+        if self.event_type == AuditEventType.PUBLISHED:
+            if self.previous_state not in {EditorialState.DRAFT, EditorialState.APPROVED}:
+                raise ValueError("Publicação exige rascunho de workspace ou aprovação legada.")
+            pair = (self.previous_state, EditorialState.PUBLISHED)
         if self.restoration_kind == RestorationKind.EDITORIAL:
             pair = (EditorialState.WITHDRAWN, EditorialState.PUBLISHED)
         if pair is None:
