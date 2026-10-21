@@ -32,6 +32,38 @@ QUERIES = [
 ]
 
 
+@pytest.mark.parametrize("action", ["validate", "publish"])
+def test_workspace_commands_without_request_body_reach_authorization(action: str) -> None:
+    app = create_app(Settings(_env_file=None, app_env="test"))
+    app.dependency_overrides[get_current_actor] = actor_override(actor())
+    path = f"/api/v1/catalog/works/{uuid4()}/workspace/{action}"
+
+    with (
+        TestClient(app) as client,
+        patch(
+            "sqlalchemy.ext.asyncio.AsyncSession.execute",
+            side_effect=AssertionError("no storage"),
+        ),
+    ):
+        response = client.post(path, headers={"If-Match": '"tag"'})
+
+    assert response.status_code == 403, response.text
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["code"] == "authorization.denied"
+
+
+def test_declared_request_body_remains_required_when_empty() -> None:
+    app = create_app(Settings(_env_file=None, app_env="test"))
+    app.dependency_overrides[get_current_actor] = actor_override(actor(*P))
+
+    with TestClient(app) as client:
+        response = client.post("/api/v1/catalog/works")
+
+    assert response.status_code == 422, response.text
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["code"] == "schema.invalid"
+
+
 @pytest.mark.parametrize(
     "collection", ["works", "instances", "items", "agents", "subjects"]
 )

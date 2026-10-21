@@ -10,8 +10,9 @@ function failure(error: unknown, locale: Locale): EditorialResult {
   const status = error instanceof CatalogAccessError ? error.status : 503;
   const message = status === 401 ? messages[locale].editorialUnauthenticated
     : status === 403 ? messages[locale].editorialForbidden
+    : status === 400 ? messages[locale].editorialBadRequest
     : status === 409 ? messages[locale].editorialConflict
-    : status === 412 ? messages[locale].editorialStale
+    : status === 412 || status === 428 ? messages[locale].editorialStale
     : status === 422 ? messages[locale].editorialInvalid
     : messages[locale].editorialUnavailable;
   return { ok: false, status, message };

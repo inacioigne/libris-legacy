@@ -40,6 +40,11 @@ class BoundedCatalogRoute(APIRoute):
 
             limited = Request(request.scope, receive)
             body = await limited.body()
+            # Bodyless commands have no JSON document to pre-parse. Routes that
+            # declare a body still let FastAPI report the missing required body,
+            # while every non-empty body remains subject to the checks below.
+            if not body:
+                return await handler(limited)
             try:
                 value: object = json.loads(body, object_pairs_hook=unique_object)
             except (ValueError, RecursionError):
