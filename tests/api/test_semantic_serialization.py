@@ -5,11 +5,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
-from rdflib import BNode, Dataset, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, OWL, PROV, RDF, RDFS, SKOS, XSD
-
 from libris.modules.bibliographic.api.schemas import (
     AgentRead,
     InstanceRead,
@@ -52,6 +47,10 @@ from libris.modules.bibliographic.infrastructure.validation import (
     INSTITUTIONAL_PROFILE_ID,
     validate_profile,
 )
+from pydantic import ValidationError
+from rdflib import BNode, Dataset, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS, OWL, PROV, RDF, RDFS, SKOS, XSD
 
 FIXTURES = Path(__file__).parents[1] / "fixtures/bibliographic/serialization"
 EXAMPLES = Path(__file__).parents[2] / "docs/examples/serialization"

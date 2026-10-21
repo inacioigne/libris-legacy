@@ -13,19 +13,21 @@ import httpx
 import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
-from test_authorization import document, human, service_double, technical
-from test_identity import Provider
-
 from libris.core.correlation import request_id_context
 from libris.main import create_app
 from libris.modules.bibliographic.domain.models import Provenance
-from libris.modules.identity.api.dependencies import get_identity_service, require_permissions
+from libris.modules.identity.api.dependencies import (
+    get_identity_service,
+    require_permissions,
+)
 from libris.modules.identity.application.authorization import AuthorizationGuard
 from libris.modules.identity.application.service import IdentityService
 from libris.modules.identity.domain.authorization import Operation as Op
 from libris.modules.identity.domain.authorization import ResourceContext, ResourceKind
-from libris.modules.identity.domain.exceptions import AuthenticationError, PermissionDenied
+from libris.modules.identity.domain.exceptions import (
+    AuthenticationError,
+    PermissionDenied,
+)
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission as P
 from libris.modules.security_audit.domain.events import (
@@ -37,6 +39,9 @@ from libris.modules.security_audit.domain.events import (
     SecurityEvent,
 )
 from libris.modules.security_audit.infrastructure.logging import LoggingSecuritySink
+from pydantic import ValidationError
+from test_authorization import document, human, service_double, technical
+from test_identity import Provider
 
 
 class Capture:

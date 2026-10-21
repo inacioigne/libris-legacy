@@ -11,14 +11,14 @@ from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
-from pydantic import ValidationError
-from rdflib import Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import OWL, RDF, SKOS, XSD
-
 from libris.modules.bibliographic.api.schemas import WorkRead
-from libris.modules.bibliographic.api.schemas.common import LocalizedText, ResourceReference
-from libris.modules.bibliographic.api.schemas.controlled_values import CatalogValueDocument
+from libris.modules.bibliographic.api.schemas.common import (
+    LocalizedText,
+    ResourceReference,
+)
+from libris.modules.bibliographic.api.schemas.controlled_values import (
+    CatalogValueDocument,
+)
 from libris.modules.bibliographic.application.controlled_values import (
     ControlledConcept,
     EntityValue,
@@ -70,7 +70,13 @@ from libris.modules.bibliographic.infrastructure.serialization.controlled_values
     catalog_value_to_graph,
     local_concept_to_graph,
 )
-from libris.modules.bibliographic.infrastructure.validation import validate_resolved_profile
+from libris.modules.bibliographic.infrastructure.validation import (
+    validate_resolved_profile,
+)
+from pydantic import ValidationError
+from rdflib import Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import OWL, RDF, SKOS, XSD
 
 ROOT = Path(__file__).parents[2]
 EXAMPLES = ROOT / "docs/examples/controlled-vocabularies"

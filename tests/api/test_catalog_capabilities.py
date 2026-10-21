@@ -10,11 +10,6 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from rdflib import BNode, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, RDF, SKOS
-from test_catalogographic_http import actor
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.api.schemas.common import (
@@ -49,6 +44,10 @@ from libris.modules.bibliographic.infrastructure.validation import (
 )
 from libris.modules.identity.api.dependencies import get_current_actor
 from libris.modules.identity.domain.permissions import Permission as P
+from rdflib import BNode, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS, RDF, SKOS
+from test_catalogographic_http import actor
 
 ROOT = "https://example.invalid/work"
 TITLE = f'<{ROOT}> a <{BF.Work}>; <{BF.title}> [a <{BF.Title}>; <{BF.mainTitle}> "Test"].'
@@ -63,12 +62,11 @@ async def client_for(
     app = create_app(Settings(_env_file=None, app_env="test", rdf_max_document_bytes=limit))
     if authenticated:
         app.dependency_overrides[get_current_actor] = lambda: actor(*permissions)
-    async with app.router.lifespan_context(app):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
-            base_url="http://test",
-        ) as client:
-            yield client
+    async with app.router.lifespan_context(app), httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="http://test",
+    ) as client:
+        yield client
 
 
 def rdf_payload(

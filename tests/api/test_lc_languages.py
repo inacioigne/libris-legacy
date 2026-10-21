@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from libris.modules.bibliographic.application.lc_languages import (
     LCLanguagesError,
     compare_lc_languages,

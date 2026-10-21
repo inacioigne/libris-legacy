@@ -4,11 +4,10 @@ import asyncio
 import os
 
 import pytest
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.domain.models import ResourceIdentity
 from libris.modules.bibliographic.infrastructure.persistence import RevisionStore
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 pytestmark = pytest.mark.integration
 

@@ -5,12 +5,6 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from rdflib.compare import isomorphic
-from sqlalchemy import select
-from test_audit_postgres import actor
-from test_catalog_http_postgres import client_context, payload
-from test_editorial_postgres import state
-
 from libris.modules.bibliographic.api.editorial import get_editorial_service
 from libris.modules.bibliographic.application.catalog_editorial import (
     CatalogEditorialService,
@@ -18,6 +12,11 @@ from libris.modules.bibliographic.application.catalog_editorial import (
 from libris.modules.bibliographic.infrastructure.persistence import SemanticRevision
 from libris.modules.bibliographic.infrastructure.rdf import parse_document
 from libris.modules.identity.api.dependencies import get_current_actor
+from rdflib.compare import isomorphic
+from sqlalchemy import select
+from test_audit_postgres import actor
+from test_catalog_http_postgres import client_context, payload
+from test_editorial_postgres import state
 
 pytestmark = pytest.mark.integration
 
@@ -578,8 +577,6 @@ def test_http_history_reads_incomplete_legacy_without_rewriting_or_inventing_eve
 ) -> None:
     from datetime import UTC, datetime
 
-    from sqlalchemy import insert
-
     from libris.modules.bibliographic.domain.models import ResourceIdentity
     from libris.modules.bibliographic.infrastructure.persistence import SemanticResource
     from libris.modules.bibliographic.infrastructure.rdf import BF
@@ -587,6 +584,7 @@ def test_http_history_reads_incomplete_legacy_without_rewriting_or_inventing_eve
         INSTITUTIONAL_PROFILE_ID,
         PROFILE_ID,
     )
+    from sqlalchemy import insert
 
     async def scenario() -> None:
         async with client_context() as (client, service):

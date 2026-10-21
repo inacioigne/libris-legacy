@@ -8,14 +8,18 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.namespace import RDF
-
 from libris.modules.bibliographic.application.history import HistoryService
 from libris.modules.bibliographic.application.service import BibliographicService
 from libris.modules.bibliographic.domain.audit import ActorType, ExecutionActor
-from libris.modules.bibliographic.domain.editorial import EditorialRecord, EditorialState
-from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity, Revision
+from libris.modules.bibliographic.domain.editorial import (
+    EditorialRecord,
+    EditorialState,
+)
+from libris.modules.bibliographic.domain.models import (
+    Provenance,
+    ResourceIdentity,
+    Revision,
+)
 from libris.modules.bibliographic.infrastructure.rdf import BF, serialize_document
 from libris.modules.bibliographic.infrastructure.validation import PROFILE_ID
 from libris.modules.identity.application.authorization import (
@@ -34,7 +38,12 @@ from libris.modules.identity.domain.authorization import (
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission as P
-from libris.modules.identity.infrastructure.role_mapper import ROLE_PERMISSIONS, map_permissions
+from libris.modules.identity.infrastructure.role_mapper import (
+    ROLE_PERMISSIONS,
+    map_permissions,
+)
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.namespace import RDF
 
 # Independently approved matrix: adding a Permission must update this evidence explicitly.
 EXPECTED = {
@@ -461,9 +470,10 @@ def test_history_missing_context_has_no_storage_access(method: str) -> None:
 
 
 def test_authority_maintenance_has_its_own_grant() -> None:
+    from libris.modules.bibliographic.infrastructure.validation import (
+        AUTHORITY_PROFILE_ID,
+    )
     from rdflib.namespace import RDFS
-
-    from libris.modules.bibliographic.infrastructure.validation import AUTHORITY_PROFILE_ID
 
     service, sessions = service_double()
     identity = ResourceIdentity.create("https://catalog.example.invalid/authorities")

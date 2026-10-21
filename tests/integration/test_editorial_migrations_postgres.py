@@ -9,21 +9,19 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, RDF, RDFS, SKOS
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from test_audit_postgres import actor, graph_for
-from test_editorial_postgres import publish, state, transition
-
-from libris.modules.bibliographic.application.audit import content_event, editorial_event
+from libris.modules.bibliographic.application.audit import (
+    content_event,
+    editorial_event,
+)
 from libris.modules.bibliographic.application.editorial import EditorialService
 from libris.modules.bibliographic.application.editorial_postgres import (
     PostgresEditorialTransactions,
 )
 from libris.modules.bibliographic.application.history import HistoryService
-from libris.modules.bibliographic.application.service import BibliographicService, prepare_document
+from libris.modules.bibliographic.application.service import (
+    BibliographicService,
+    prepare_document,
+)
 from libris.modules.bibliographic.domain.audit import AuditEventType
 from libris.modules.bibliographic.domain.editorial import (
     EditorialRecord,
@@ -31,7 +29,11 @@ from libris.modules.bibliographic.domain.editorial import (
     EditorialState,
     prepare_transition,
 )
-from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity, Revision
+from libris.modules.bibliographic.domain.models import (
+    Provenance,
+    ResourceIdentity,
+    Revision,
+)
 from libris.modules.bibliographic.infrastructure.audit import AuditStore
 from libris.modules.bibliographic.infrastructure.persistence import RevisionStore
 from libris.modules.bibliographic.infrastructure.rdf import BF
@@ -39,6 +41,13 @@ from libris.modules.bibliographic.infrastructure.validation import (
     AUTHORITY_PROFILE_ID,
     INSTITUTIONAL_PROFILE_ID,
 )
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS, RDF, RDFS, SKOS
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from test_audit_postgres import actor, graph_for
+from test_editorial_postgres import publish, state, transition
 
 pytestmark = pytest.mark.integration
 

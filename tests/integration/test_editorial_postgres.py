@@ -7,22 +7,20 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import RDF, RDFS, SKOS
-from sqlalchemy import insert, text, update
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from test_audit_postgres import actor, context, graph_for
-
 from libris.modules.bibliographic.application.editorial import EditorialService
 from libris.modules.bibliographic.application.editorial_postgres import (
     PostgresEditorialTransactions,
 )
-from libris.modules.bibliographic.application.history import EditorialHistory, HistoryService
+from libris.modules.bibliographic.application.history import (
+    EditorialHistory,
+    HistoryService,
+)
 from libris.modules.bibliographic.domain.audit import AuditEvent
 from libris.modules.bibliographic.domain.audit import AuditEventType as E
-from libris.modules.bibliographic.domain.editorial import EditorialScope, PreparedTransition
+from libris.modules.bibliographic.domain.editorial import (
+    EditorialScope,
+    PreparedTransition,
+)
 from libris.modules.bibliographic.domain.editorial import EditorialState as S
 from libris.modules.bibliographic.domain.errors import CatalogError
 from libris.modules.bibliographic.domain.models import (
@@ -52,6 +50,13 @@ from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import RDF, RDFS, SKOS
+from sqlalchemy import insert, text, update
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from test_audit_postgres import actor, context, graph_for
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",
@@ -299,7 +304,9 @@ def test_legacy_initialization_and_denied_attempt_do_not_fabricate_history() -> 
         async with context() as (sessions, service):
             identity = ResourceIdentity.create("https://legacy43.example.invalid/resources")
             graph = graph_for(identity)
-            from libris.modules.bibliographic.application.service import prepare_document
+            from libris.modules.bibliographic.application.service import (
+                prepare_document,
+            )
             from libris.modules.bibliographic.domain.models import Revision
 
             revision = Revision(

@@ -3,10 +3,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from rdflib import BNode, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, RDF, SH, XSD
-
 from libris.modules.bibliographic.domain.models import ResourceIdentity
 from libris.modules.bibliographic.infrastructure.rdf import (
     BF,
@@ -20,6 +16,9 @@ from libris.modules.bibliographic.infrastructure.rdf import (
     serialize_document,
 )
 from libris.modules.bibliographic.infrastructure.validation import validate_monograph
+from rdflib import BNode, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS, RDF, SH, XSD
 
 FIXTURE = Path(__file__).parents[1] / "fixtures/bibliographic/book.ttl"
 WORK = URIRef("http://localhost:8000/resources/00000000-0000-4000-8000-000000000001")

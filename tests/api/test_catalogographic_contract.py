@@ -4,11 +4,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
-
 from libris.modules.bibliographic.application.service import prepare_document
 from libris.modules.bibliographic.domain.models import (
     ResourceIdentity,
@@ -36,6 +31,10 @@ from libris.modules.bibliographic.infrastructure.validation import (
     INSTITUTIONAL_PROFILE_ID,
     validate_profile,
 )
+from pydantic import ValidationError
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
 CORPUS = Path(__file__).parents[1] / "fixtures/bibliographic/institutional"
 MANIFEST = json.loads((CORPUS / "manifest.json").read_text())

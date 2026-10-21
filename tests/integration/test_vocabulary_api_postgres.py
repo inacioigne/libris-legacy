@@ -9,9 +9,6 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.api.dependencies import get_session_factory
@@ -28,10 +25,15 @@ from libris.modules.bibliographic.application.vocabulary_resolution import (
     ResolutionFailure,
     ResolutionProvenance,
 )
-from libris.modules.identity.api.dependencies import get_current_actor, get_identity_service
+from libris.modules.identity.api.dependencies import (
+    get_current_actor,
+    get_identity_service,
+)
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission
 from libris.modules.security_audit.infrastructure.logging import LoggingSecuritySink
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 pytestmark = pytest.mark.integration
 NOW = datetime(2026, 10, 19, 12, tzinfo=UTC)

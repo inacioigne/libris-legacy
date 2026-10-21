@@ -72,7 +72,11 @@ def test_complete_release_requires_explicit_count_and_required_coverage() -> Non
         (b"", "vazio"),
         (b"\xff", "UTF-8"),
         (b"@prefix skos: <", "malformado"),
-        (TURTLE + b"\n<http://id.loc.gov/vocabulary/languages/eng> skos:notation \"foo\" .", "exatamente uma"),
+        (
+            TURTLE
+            + b"\n<http://id.loc.gov/vocabulary/languages/eng> skos:notation \"foo\" .",
+            "exatamente uma",
+        ),
         (
             TURTLE.replace(
                 b'<http://id.loc.gov/vocabulary/languages> ;',

@@ -13,14 +13,6 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from rdflib import Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS
-from sqlalchemy import delete, select, text
-from sqlalchemy.ext.asyncio import AsyncSession
-from test_audit_postgres import actor
-from test_editorial_postgres import publish, state, transition
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.api.dependencies import get_catalog_service
@@ -57,6 +49,13 @@ from libris.modules.bibliographic.infrastructure.vocabulary_catalog import (
     VocabularyReleaseRecord,
 )
 from libris.modules.identity.api.dependencies import get_current_actor
+from rdflib import Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS
+from sqlalchemy import delete, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from test_audit_postgres import actor
+from test_editorial_postgres import publish, state, transition
 
 pytestmark = pytest.mark.integration
 FIXTURES = Path(__file__).parents[1] / "fixtures/bibliographic/contracts"
@@ -692,12 +691,16 @@ def test_legacy_read_does_not_initialize_editorial_state() -> None:
     async def scenario() -> None:
         from datetime import UTC, datetime
 
-        from test_audit_postgres import graph_for
-
         from libris.modules.bibliographic.application.service import prepare_document
-        from libris.modules.bibliographic.domain.models import ResourceIdentity, Revision
+        from libris.modules.bibliographic.domain.models import (
+            ResourceIdentity,
+            Revision,
+        )
         from libris.modules.bibliographic.infrastructure.editorial import EditorialStore
-        from libris.modules.bibliographic.infrastructure.validation import INSTITUTIONAL_PROFILE_ID
+        from libris.modules.bibliographic.infrastructure.validation import (
+            INSTITUTIONAL_PROFILE_ID,
+        )
+        from test_audit_postgres import graph_for
 
         async with client_context() as (client, service):
             identity = ResourceIdentity.create("https://historical.invalid/records")

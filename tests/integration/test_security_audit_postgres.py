@@ -3,13 +3,12 @@
 import asyncio
 
 import pytest
-from test_audit_postgres import actor, context, graph_for
-
 from libris.modules.bibliographic.application.history import HistoryService
 from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity
 from libris.modules.identity.application.authorization import AuthorizationGuard
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.security_audit.domain.events import Outcome, SecurityEvent
+from test_audit_postgres import actor, context, graph_for
 
 pytestmark = pytest.mark.integration
 

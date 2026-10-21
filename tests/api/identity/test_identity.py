@@ -10,8 +10,6 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import Depends
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.identity.api.dependencies import (
@@ -30,6 +28,7 @@ from libris.modules.identity.infrastructure.role_mapper import (
     extract_roles,
     map_permissions,
 )
+from pydantic import ValidationError
 
 
 class Provider:
@@ -570,9 +569,8 @@ def test_logs_do_not_disclose_token_or_claims(
         {"sub": "private-subject", "email": "private@example.invalid"},
         private=provider.other,
     )
-    with caplog.at_level("DEBUG"):
-        with pytest.raises(AuthenticationError):
-            asyncio.run(provider.validator.validate(token))
+    with caplog.at_level("DEBUG"), pytest.raises(AuthenticationError):
+        asyncio.run(provider.validator.validate(token))
     for sensitive in (token, "private-subject", "private@example.invalid"):
         assert sensitive not in caplog.text
 
@@ -618,9 +616,11 @@ def test_operation_guard_ignores_forged_http_authority(
     from typing import Annotated
 
     from fastapi import Body
-
     from libris.modules.identity.api.dependencies import get_execution_context
-    from libris.modules.identity.application.authorization import AuthorizationGuard, HumanContext
+    from libris.modules.identity.application.authorization import (
+        AuthorizationGuard,
+        HumanContext,
+    )
     from libris.modules.identity.domain.authorization import (
         Operation,
         ResourceContext,

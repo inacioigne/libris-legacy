@@ -8,14 +8,13 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.application.history import HistoryService
 from libris.modules.bibliographic.infrastructure.audit import AuditStore
 from libris.modules.bibliographic.infrastructure.persistence import RevisionStore
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.infrastructure.role_mapper import map_permissions
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 pytestmark = pytest.mark.integration
 

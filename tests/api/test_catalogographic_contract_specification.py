@@ -6,15 +6,19 @@ import sys
 from pathlib import Path
 
 import pytest
-from pydantic import BaseModel, ValidationError
-
 from libris.api.problems import ProblemDetails, classify
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.api import schemas
-from libris.modules.bibliographic.application.controlled_values import CatalogValueDocument
-from libris.modules.bibliographic.application.diagnostics import CatalogValidationResult, Diagnostic
+from libris.modules.bibliographic.application.controlled_values import (
+    CatalogValueDocument,
+)
+from libris.modules.bibliographic.application.diagnostics import (
+    CatalogValidationResult,
+    Diagnostic,
+)
 from libris.modules.bibliographic.domain.errors import CatalogCode, CatalogError
+from pydantic import BaseModel, ValidationError
 
 ROOT = Path(__file__).parents[2]
 ARTIFACT = ROOT / "docs/architecture/catalogographic-contract-v1.schema.json"

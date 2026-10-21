@@ -12,24 +12,25 @@ import httpx
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
-from rdflib import URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import RDFS
-from test_catalog_http_postgres import COLLECTIONS
-from test_editorial_http_postgres import command, seed
-from test_editorial_postgres import state
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.application.catalog import CatalogService
 from libris.modules.bibliographic.infrastructure.rdf import BF
-from libris.modules.bibliographic.infrastructure.serialization import parse_representation
+from libris.modules.bibliographic.infrastructure.serialization import (
+    parse_representation,
+)
 from libris.modules.bibliographic.infrastructure.validation import (
     AUTHORITY_PROFILE_ID,
     INSTITUTIONAL_PROFILE_ID,
 )
 from libris.modules.identity.domain.models import actor_identifier
 from libris.modules.identity.infrastructure.oidc import OIDCValidator
+from rdflib import URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import RDFS
+from test_catalog_http_postgres import COLLECTIONS
+from test_editorial_http_postgres import command, seed
+from test_editorial_postgres import state
 
 pytestmark = pytest.mark.integration
 ISSUER = "http://localhost:19999/realms/offline-test"

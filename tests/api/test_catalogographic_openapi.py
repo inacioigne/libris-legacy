@@ -14,9 +14,6 @@ import pytest
 from fastapi.encoders import jsonable_encoder
 from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ValidationError
-from test_catalogographic_http import actor
-
 from libris.api.problems import ProblemDetails
 from libris.core.config import Settings
 from libris.main import create_app
@@ -31,6 +28,8 @@ from libris.modules.bibliographic.domain.models import StaleRevisionError
 from libris.modules.identity.api.dependencies import get_current_actor
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.permissions import Permission
+from pydantic import BaseModel, ValidationError
+from test_catalogographic_http import actor
 
 ROOT = Path(__file__).parents[2]
 SCRIPT = ROOT / "scripts/generate_catalogographic_openapi.py"

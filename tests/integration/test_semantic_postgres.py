@@ -5,13 +5,6 @@ import os
 from pathlib import Path
 
 import pytest
-from rdflib import Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS
-from sqlalchemy import select, text, update
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.application.service import BibliographicService
 from libris.modules.bibliographic.domain.models import (
     Provenance,
@@ -30,6 +23,12 @@ from libris.modules.bibliographic.infrastructure.rdf import (
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from rdflib import Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS
+from sqlalchemy import select, text, update
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",

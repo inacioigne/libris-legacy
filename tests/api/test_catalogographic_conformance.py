@@ -6,10 +6,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from rdflib import URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import RDF, RDFS, SH, SKOS
-
 from libris.modules.bibliographic.api.schemas import (
     AgentCreate,
     AgentRead,
@@ -49,6 +45,9 @@ from libris.modules.bibliographic.infrastructure.validation import (
     validate_profile,
     validate_resolved_profile,
 )
+from rdflib import URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import RDF, RDFS, SH, SKOS
 
 ROOT = Path(__file__).parents[2]
 FIXTURES = ROOT / "tests/fixtures/bibliographic"

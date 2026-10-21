@@ -4,6 +4,10 @@ import asyncio
 from uuid import UUID, uuid4
 
 import pytest
+from libris.modules.bibliographic.domain.models import Provenance
+from libris.modules.bibliographic.infrastructure.serialization import (
+    parse_representation,
+)
 from rdflib import Literal, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import DCTERMS, XSD
@@ -11,11 +15,6 @@ from sqlalchemy import event
 from test_audit_postgres import actor
 from test_catalog_http_postgres import client_context
 from test_editorial_http_postgres import command, seed
-
-from libris.modules.bibliographic.domain.models import Provenance
-from libris.modules.bibliographic.infrastructure.serialization import (
-    parse_representation,
-)
 
 pytestmark = pytest.mark.integration
 COLLECTIONS = ["works", "instances", "items", "agents", "subjects"]
@@ -284,8 +283,12 @@ def test_listing_does_not_infer_state_for_legacy() -> None:
     from libris.modules.bibliographic.api.schemas import WorkCreate
     from libris.modules.bibliographic.application.service import prepare_document
     from libris.modules.bibliographic.domain.models import ResourceIdentity, Revision
-    from libris.modules.bibliographic.infrastructure.serialization import create_to_graph
-    from libris.modules.bibliographic.infrastructure.validation import INSTITUTIONAL_PROFILE_ID
+    from libris.modules.bibliographic.infrastructure.serialization import (
+        create_to_graph,
+    )
+    from libris.modules.bibliographic.infrastructure.validation import (
+        INSTITUTIONAL_PROFILE_ID,
+    )
 
     async def scenario() -> None:
         async with client_context() as (client, service):

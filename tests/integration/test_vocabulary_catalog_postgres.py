@@ -5,9 +5,6 @@ import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.application.vocabulary_catalog import (
     ImportedConcept,
     VocabularyCatalogService,
@@ -32,6 +29,8 @@ from libris.modules.bibliographic.infrastructure.vocabulary_catalog import (
     VocabularyReleaseRecord,
     VocabularyResolutionAttemptRecord,
 )
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 pytestmark = pytest.mark.integration
 

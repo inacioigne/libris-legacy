@@ -4,14 +4,13 @@ import asyncio
 from uuid import UUID, uuid4
 
 import pytest
+from libris.modules.bibliographic.domain.models import Provenance
+from libris.modules.bibliographic.infrastructure.rdf import BF
 from rdflib import Literal, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import DCTERMS, XSD
 from test_audit_postgres import actor
 from test_catalog_http_postgres import client_context, create, payload
-
-from libris.modules.bibliographic.domain.models import Provenance
-from libris.modules.bibliographic.infrastructure.rdf import BF
 
 pytestmark = pytest.mark.integration
 

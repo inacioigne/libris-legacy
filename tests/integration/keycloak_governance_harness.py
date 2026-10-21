@@ -11,8 +11,14 @@ import time
 import httpx
 from fastapi import Depends
 from fastapi.testclient import TestClient
-from keycloak_harness import ISSUER, KeycloakProbe, ProbeFailure, check, document, string
-
+from keycloak_harness import (
+    ISSUER,
+    KeycloakProbe,
+    ProbeFailure,
+    check,
+    document,
+    string,
+)
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.identity.api.dependencies import require_permissions

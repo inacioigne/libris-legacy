@@ -7,11 +7,10 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import OWL, RDF, RDFS, SH, XSD
-
-from libris.modules.bibliographic.application.service import BibliographicService, prepare_document
+from libris.modules.bibliographic.application.service import (
+    BibliographicService,
+    prepare_document,
+)
 from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity
 from libris.modules.bibliographic.domain.profile_contract import (
     ProfileValidationContext,
@@ -28,10 +27,15 @@ from libris.modules.bibliographic.infrastructure.validation import (
     validate_profile,
     validate_resolved_profile,
 )
-from libris.modules.bibliographic.infrastructure.validation_policy import add_profile_constraints
+from libris.modules.bibliographic.infrastructure.validation_policy import (
+    add_profile_constraints,
+)
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import OWL, RDF, RDFS, SH, XSD
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",
@@ -533,7 +537,9 @@ def test_revise_violation_exits_transaction_without_saving() -> None:
     service.store.advance.assert_awaited_once()
     service.store.save.assert_not_awaited()
     service.editorial.save.assert_not_awaited()
-    from libris.modules.bibliographic.application.diagnostics import CatalogValidationRejected
+    from libris.modules.bibliographic.application.diagnostics import (
+        CatalogValidationRejected,
+    )
 
     assert transaction.__aexit__.await_args.args[0] is CatalogValidationRejected
     assert issubclass(CatalogValidationRejected, ValueError)

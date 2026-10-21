@@ -4,14 +4,6 @@ import asyncio
 from uuid import UUID, uuid4
 
 import pytest
-from rdflib import Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS
-from sqlalchemy import event, text
-from test_audit_postgres import actor
-from test_catalog_http_postgres import client_context, create
-from test_editorial_postgres import publish, state, transition
-
 from libris.modules.bibliographic.api.capabilities import get_relationship_service
 from libris.modules.bibliographic.application.catalog_relationships import (
     RelationshipService,
@@ -22,6 +14,13 @@ from libris.modules.bibliographic.infrastructure.rdf import BF
 from libris.modules.bibliographic.infrastructure.validation import (
     INSTITUTIONAL_PROFILE_ID,
 )
+from rdflib import Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS
+from sqlalchemy import event, text
+from test_audit_postgres import actor
+from test_catalog_http_postgres import client_context, create
+from test_editorial_postgres import publish, state, transition
 
 pytestmark = pytest.mark.integration
 

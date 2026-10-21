@@ -3,8 +3,6 @@
 import asyncio
 
 import pytest
-from test_audit_postgres import actor, context, graph_for
-
 from libris.modules.bibliographic.application.editorial import EditorialService
 from libris.modules.bibliographic.application.editorial_postgres import (
     PostgresEditorialTransactions,
@@ -13,11 +11,14 @@ from libris.modules.bibliographic.application.history import HistoryService
 from libris.modules.bibliographic.domain.audit import ActorType, ExecutionActor
 from libris.modules.bibliographic.domain.errors import CatalogCode, CatalogError
 from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity
-from libris.modules.bibliographic.infrastructure.validation import INSTITUTIONAL_PROFILE_ID
+from libris.modules.bibliographic.infrastructure.validation import (
+    INSTITUTIONAL_PROFILE_ID,
+)
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.permissions import Permission
+from test_audit_postgres import actor, context, graph_for
 
 pytestmark = pytest.mark.integration
 

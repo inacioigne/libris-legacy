@@ -11,8 +11,6 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ValidationError
-
 from libris import main
 from libris.api.problems import classify, handle_request_validation
 from libris.core.config import Settings
@@ -37,6 +35,7 @@ from libris.modules.identity.domain.authorization import ResourceContext, Resour
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission as P
+from pydantic import BaseModel, ValidationError
 
 
 def actor(*permissions: P) -> AuthenticatedActor:
@@ -441,8 +440,14 @@ def test_editing_etag_is_bound_to_representation_and_editorial_generation() -> N
     from libris.modules.bibliographic.api.representations import editing_etag
     from libris.modules.bibliographic.api.schemas import WorkRead
     from libris.modules.bibliographic.application.catalog import CatalogView
-    from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity, Revision
-    from libris.modules.bibliographic.infrastructure.validation import INSTITUTIONAL_PROFILE_ID
+    from libris.modules.bibliographic.domain.models import (
+        Provenance,
+        ResourceIdentity,
+        Revision,
+    )
+    from libris.modules.bibliographic.infrastructure.validation import (
+        INSTITUTIONAL_PROFILE_ID,
+    )
 
     identity = ResourceIdentity.create("https://synthetic.invalid/records")
     resource = WorkRead(

@@ -1,10 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncEngine
-
 from libris.core.config import Settings
 from libris.main import create_app
+from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 
 def test_lifespan_and_health_without_external_services(monkeypatch: pytest.MonkeyPatch) -> None:

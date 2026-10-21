@@ -8,11 +8,6 @@ from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
-from pydantic import TypeAdapter, ValidationError
-from rdflib import URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import OWL, RDF, SKOS
-
 from libris.core.config import Settings
 from libris.modules.bibliographic.api import schemas
 from libris.modules.bibliographic.api.schemas.common import (
@@ -30,12 +25,20 @@ from libris.modules.bibliographic.application.relationships import (
 from libris.modules.bibliographic.domain.models import ResourceIdentity
 from libris.modules.bibliographic.domain.relationships import EntityType
 from libris.modules.bibliographic.infrastructure.ownership import owned_nodes
-from libris.modules.bibliographic.infrastructure.rdf import BF, new_graph, parse_document
+from libris.modules.bibliographic.infrastructure.rdf import (
+    BF,
+    new_graph,
+    parse_document,
+)
 from libris.modules.bibliographic.infrastructure.validation import (
     AUTHORITY_PROFILE_ID,
     INSTITUTIONAL_PROFILE_ID,
     validate_profile,
 )
+from pydantic import TypeAdapter, ValidationError
+from rdflib import URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import OWL, RDF, SKOS
 
 ROOT = Path(__file__).parents[1] / "fixtures/bibliographic/identifiers"
 IDENTIFIER = UUID("00000000-0000-4000-8000-000000000001")
@@ -93,7 +96,7 @@ def test_uuid_type_and_immutable_identity() -> None:
     assert identity.internal_id == IDENTIFIER
     assert identity.uri == URI
     with pytest.raises(FrozenInstanceError):
-        setattr(identity, "uri", "https://changed.example.org/resources/1")
+        identity.uri = "https://changed.example.org/resources/1"
     generated = ResourceIdentity.create("https://example.org/resources")
     assert generated.internal_id.version == 4
 

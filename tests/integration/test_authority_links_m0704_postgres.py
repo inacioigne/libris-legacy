@@ -4,12 +4,11 @@ import asyncio
 from uuid import UUID, uuid4
 
 import pytest
+from libris.modules.identity.api.dependencies import get_current_actor
 from rdflib.compare import isomorphic
 from test_audit_postgres import actor
 from test_catalog_http_postgres import client_context, create
 from test_editorial_postgres import state
-
-from libris.modules.identity.api.dependencies import get_current_actor
 
 pytestmark = pytest.mark.integration
 BF = "http://id.loc.gov/ontologies/bibframe/"

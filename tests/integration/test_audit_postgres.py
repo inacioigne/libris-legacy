@@ -9,13 +9,6 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, RDF
-from sqlalchemy import func, insert, select, text
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.application.audit import editorial_event
 from libris.modules.bibliographic.application.history import HistoryService
 from libris.modules.bibliographic.application.service import BibliographicService
@@ -33,19 +26,30 @@ from libris.modules.bibliographic.domain.models import (
     ResourceIdentity,
     StaleRevisionError,
 )
-from libris.modules.bibliographic.infrastructure.audit import AuditStore, SemanticAuditEvent
+from libris.modules.bibliographic.infrastructure.audit import (
+    AuditStore,
+    SemanticAuditEvent,
+)
 from libris.modules.bibliographic.infrastructure.persistence import (
     SemanticResource,
     SemanticRevision,
 )
 from libris.modules.bibliographic.infrastructure.rdf import BF
-from libris.modules.bibliographic.infrastructure.validation import INSTITUTIONAL_PROFILE_ID
+from libris.modules.bibliographic.infrastructure.validation import (
+    INSTITUTIONAL_PROFILE_ID,
+)
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
 from libris.modules.identity.infrastructure.role_mapper import map_permissions
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS, RDF
+from sqlalchemy import func, insert, select, text
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",
@@ -360,7 +364,6 @@ def test_direct_sql_constraints_and_referential_integrity(changes: dict[str, obj
                 occurred_at=datetime.now(UTC),
                 source="fixture",
                 process="test",
-                **{},
             )
             values.update(changes)
             with pytest.raises(DBAPIError):

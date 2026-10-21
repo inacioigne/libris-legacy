@@ -6,9 +6,6 @@ from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.namespace import XSD
-
 from libris.modules.bibliographic.application.audit import (
     audit_actor,
     content_event,
@@ -38,10 +35,17 @@ from libris.modules.bibliographic.domain.editorial import (
 from libris.modules.bibliographic.domain.editorial import (
     EditorialState as S,
 )
-from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity, Revision
+from libris.modules.bibliographic.domain.models import (
+    Provenance,
+    ResourceIdentity,
+    Revision,
+)
 from libris.modules.bibliographic.infrastructure.audit import validate_page
 from libris.modules.bibliographic.infrastructure.profiles import load_legacy_profile
-from libris.modules.bibliographic.infrastructure.rdf import parse_document, serialize_document
+from libris.modules.bibliographic.infrastructure.rdf import (
+    parse_document,
+    serialize_document,
+)
 from libris.modules.bibliographic.infrastructure.validation import (
     AUTHORITY_PROFILE_ID,
     INSTITUTIONAL_PROFILE_ID,
@@ -51,6 +55,8 @@ from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission as P
 from libris.modules.identity.infrastructure.role_mapper import map_permissions
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.namespace import XSD
 
 NOW = datetime.now(UTC)
 IDENTITY = ResourceIdentity.create("https://catalog.example.invalid/resources")

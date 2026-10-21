@@ -7,8 +7,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from pydantic import TypeAdapter, ValidationError
-
 from libris.modules.bibliographic.api import schemas
 from libris.modules.bibliographic.api.schemas import relationships as contracts
 from libris.modules.bibliographic.api.schemas.common import (
@@ -31,6 +29,7 @@ from libris.modules.bibliographic.domain.relationships import (
     EntityType,
     RelationDefinition,
 )
+from pydantic import TypeAdapter, ValidationError
 
 ROOT = Path(__file__).parents[1] / "fixtures/bibliographic/relationships"
 EXAMPLES = json.loads((ROOT / "manifest.json").read_text())["examples"]

@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.bibliographic.api.dependencies import get_vocabulary_query_service

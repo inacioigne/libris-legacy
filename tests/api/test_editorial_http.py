@@ -5,12 +5,11 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from test_catalogographic_http import actor, actor_override
-
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.identity.api.dependencies import get_current_actor
 from libris.modules.identity.domain.permissions import Permission as P
+from test_catalogographic_http import actor, actor_override
 
 COMMANDS = [
     "submit",

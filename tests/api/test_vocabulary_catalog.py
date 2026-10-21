@@ -3,13 +3,12 @@
 from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
-
 from libris.modules.bibliographic.application.vocabulary_catalog import (
     ImportedConcept,
     VocabularyImport,
     VocabularyReleaseInput,
 )
+from pydantic import ValidationError
 
 NOW = datetime(2026, 10, 19, tzinfo=UTC)
 VOCABULARY = "http://id.loc.gov/vocabulary/languages/"

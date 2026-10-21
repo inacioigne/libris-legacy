@@ -2,10 +2,9 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
-
 from libris.core.config import Settings
 from libris.main import create_app
+from pydantic import ValidationError
 
 
 @pytest.mark.parametrize("origin", [

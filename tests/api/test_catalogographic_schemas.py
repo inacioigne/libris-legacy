@@ -8,8 +8,6 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, TypeAdapter, ValidationError
-
 from libris.modules.bibliographic.api import schemas
 from libris.modules.bibliographic.api.schemas.common import (
     IRI,
@@ -27,6 +25,7 @@ from libris.modules.bibliographic.api.schemas.common import (
     ShelfMark,
     Title,
 )
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 FIXTURES = Path(__file__).parents[1] / "fixtures/bibliographic/contracts"
 RESOURCES = ("Work", "Instance", "Item", "Agent", "Subject")

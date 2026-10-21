@@ -8,11 +8,6 @@ from uuid import uuid4
 import pytest
 from fastapi import Header
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.collection import Collection
-from rdflib.namespace import RDF, RDFS, SH
-
 from libris.api.problems import adapt_pydantic_error, require_if_match
 from libris.core.config import Settings
 from libris.core.correlation import request_id_context
@@ -63,6 +58,10 @@ from libris.modules.bibliographic.infrastructure.validation import (
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from pydantic import ValidationError
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.collection import Collection
+from rdflib.namespace import RDF, RDFS, SH
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",
@@ -581,9 +580,8 @@ def test_anonymous_identifier_does_not_hash_sensitive_lexical_values() -> None:
 def test_database_error_classification(
     sqlstate: str | None, invalidated: bool, status: int
 ) -> None:
-    from sqlalchemy.exc import DBAPIError, IntegrityError
-
     from libris.api.problems import classify
+    from sqlalchemy.exc import DBAPIError, IntegrityError
 
     class DriverError(Exception):
         pass

@@ -8,11 +8,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic import ValidationError
-from rdflib import Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, OWL, PROV, RDF, SH, XSD
-
 from libris.modules.bibliographic.application.service import (
     BibliographicService,
     prepare_document,
@@ -57,6 +52,10 @@ from libris.modules.bibliographic.infrastructure.validation import (
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from pydantic import ValidationError
+from rdflib import Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import DCTERMS, OWL, PROV, RDF, SH, XSD
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",

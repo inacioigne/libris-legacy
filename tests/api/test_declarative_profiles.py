@@ -11,10 +11,6 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from pydantic import ValidationError
-from rdflib import Graph
-from rdflib.namespace import SH
-
 from libris.modules.bibliographic.domain.profile_contract import (
     XSD,
     CatalogPolicy,
@@ -51,6 +47,9 @@ from libris.modules.bibliographic.infrastructure.validation import (
     validate_profile,
     validate_resolved_profile,
 )
+from pydantic import ValidationError
+from rdflib import Graph
+from rdflib.namespace import SH
 
 ROOT = Path(__file__).parents[2]
 RESOURCES = files("libris.modules.bibliographic").joinpath("resources")
@@ -860,15 +859,14 @@ def test_explicit_lifecycle_preserves_content_and_never_follows_replacement() ->
 
 
 def test_composed_validation_reuses_engine_and_auxiliary_mapping() -> None:
-    from rdflib import URIRef
-    from rdflib.namespace import RDF
-
     from libris.modules.bibliographic.infrastructure.ownership import (
         ENTITY_TYPES,
         compose_snapshots,
         owned_nodes,
     )
     from libris.modules.bibliographic.infrastructure.rdf import new_graph
+    from rdflib import URIRef
+    from rdflib.namespace import RDF
 
     def fixture(name: str) -> Graph:
         return parse_document(

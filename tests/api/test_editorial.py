@@ -9,9 +9,6 @@ from itertools import product
 from uuid import UUID
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.namespace import RDF, RDFS, SKOS
-
 from libris.modules.bibliographic.api.schemas.common import LocalReference
 from libris.modules.bibliographic.api.schemas.relationships import (
     DirectLink,
@@ -62,6 +59,8 @@ from libris.modules.bibliographic.infrastructure.validation import (
 )
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.infrastructure.role_mapper import map_permissions
+from rdflib import BNode, Graph, Literal, URIRef
+from rdflib.namespace import RDF, RDFS, SKOS
 
 NOW = datetime.now(UTC)
 IDENTITY = ResourceIdentity.create("https://example.org/resources")
@@ -599,7 +598,9 @@ def test_shacl_unavailable_never_produces_publication(
     failure: str,
     code: C,
 ) -> None:
-    from libris.modules.bibliographic.application.editorial import CatalogPublicationRejected
+    from libris.modules.bibliographic.application.editorial import (
+        CatalogPublicationRejected,
+    )
     from libris.modules.bibliographic.infrastructure import validation
 
     def fail(*args: object, **kwargs: object) -> None:
@@ -755,7 +756,9 @@ def test_guard_denies_before_editorial_transaction(target: S) -> None:
 
 def test_typed_editorial_denial_maps_to_403_without_changing_legacy_catalog_fallback() -> None:
     from libris.api.problems import classify
-    from libris.modules.bibliographic.application.editorial import EditorialPermissionDenied
+    from libris.modules.bibliographic.application.editorial import (
+        EditorialPermissionDenied,
+    )
     from libris.modules.identity.domain.exceptions import PermissionDenied
 
     denial = EditorialPermissionDenied()

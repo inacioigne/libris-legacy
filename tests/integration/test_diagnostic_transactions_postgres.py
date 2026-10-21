@@ -4,11 +4,6 @@ import asyncio
 import os
 
 import pytest
-from rdflib import Graph, Literal, URIRef
-from rdflib.compare import isomorphic
-from rdflib.namespace import RDF
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from libris.modules.bibliographic.application.diagnostics import (
     CatalogValidationRejected,
 )
@@ -24,6 +19,10 @@ from libris.modules.bibliographic.infrastructure.validation import (
 from libris.modules.identity.application.authorization import TechnicalContext
 from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from rdflib import Graph, Literal, URIRef
+from rdflib.compare import isomorphic
+from rdflib.namespace import RDF
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",

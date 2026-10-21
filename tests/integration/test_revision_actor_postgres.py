@@ -5,12 +5,15 @@ import os
 from datetime import UTC, datetime
 
 import pytest
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import RDF
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-from libris.modules.bibliographic.application.service import BibliographicService, prepare_document
-from libris.modules.bibliographic.domain.models import Provenance, ResourceIdentity, Revision
+from libris.modules.bibliographic.application.service import (
+    BibliographicService,
+    prepare_document,
+)
+from libris.modules.bibliographic.domain.models import (
+    Provenance,
+    ResourceIdentity,
+    Revision,
+)
 from libris.modules.bibliographic.infrastructure.rdf import BF, new_graph
 from libris.modules.bibliographic.infrastructure.validation import PROFILE_ID
 from libris.modules.identity.application.authorization import TechnicalContext
@@ -18,6 +21,9 @@ from libris.modules.identity.domain.authorization import Operation
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission
 from libris.modules.identity.domain.permissions import Permission as ContextPermission
+from rdflib import BNode, Literal, URIRef
+from rdflib.namespace import RDF
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_CONTEXT = TechnicalContext(
     "service:regression-fixture",
