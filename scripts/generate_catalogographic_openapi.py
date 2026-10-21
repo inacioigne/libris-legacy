@@ -12,7 +12,7 @@ from unittest.mock import patch
 from libris.core.config import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "docs/architecture/catalogographic-openapi-v2-workspace.json"
+BASELINE = ROOT / "docs/architecture/catalogographic-openapi-v3-agent-workspace.json"
 type Json = dict[str, Json] | list[Json] | str | int | float | bool | None
 
 

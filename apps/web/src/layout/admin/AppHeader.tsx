@@ -4,7 +4,6 @@ import { useSidebar } from "@/context/SidebarContext";
 import Link from "next/link";
 import type { Locale } from "@/i18n/messages";
 import { ReactNode } from "react";
-// import UserArea from "@/components/header/UserArea";
 
 type AppHeaderProps = {
   locale: Locale;
@@ -106,29 +105,9 @@ export function AppHeader({ locale, userArea }: AppHeaderProps) {
             </form>
           </div>
         </div>
-        {/* <div>
-          <div className="flex gap-3.5">
-            <ThemeToggleButton />
-            {userArea}
-          </div>
-        </div> */}
+
          <div className="flex items-center gap-4 2xsm:gap-3">
-          {/* <nav aria-label={t.languages} className="flex gap-5 text-sm">
-            <Link
-              href="/pt/opac"
-              hrefLang="pt-BR"
-              aria-current={locale === "pt" ? "page" : undefined}
-            >
-              Português
-            </Link>
-            <Link
-              href="/en/opac"
-              hrefLang="en"
-              aria-current={locale === "en" ? "page" : undefined}
-            >
-              English
-            </Link>
-          </nav> */}
+
           <div className="cursor-pointer">
             <ThemeToggleButton />
           </div>

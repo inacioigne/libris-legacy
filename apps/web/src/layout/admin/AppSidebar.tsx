@@ -5,7 +5,7 @@ import { messages, type Locale } from "@/i18n/messages";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useState, type ReactNode } from "react";
-import { GrUserAdmin } from "react-icons/gr";
+// import { GrUserAdmin } from "react-icons/gr";
 import { MdExpandMore, MdOutlineDashboardCustomize } from "react-icons/md";
 import { MdOutlinePersonSearch } from "react-icons/md";
 import { FaGears } from "react-icons/fa6";
@@ -47,6 +47,10 @@ const navItems: NavItem[] = [
     icon: <MdOutlinePersonSearch />,
     key: "authority",
     path: "/admin/authority",
+    subItems: [
+      { key: "authorityAgent", path: "/admin/authority" },
+      { key: "newAuthority", path: "/admin/authority/new" },
+    ],
   },
 ];
 

@@ -9,12 +9,13 @@ import {
 } from "./index";
 
 export type CatalogCollection = "works" | "instances" | "items" | "agents" | "subjects";
+export type EditorialCommandCollection = Exclude<CatalogCollection, "agents">;
 export type EditorialState = components["schemas"]["EditorialStateRead"];
 export type RevisionPage = components["schemas"]["RevisionPage"];
 export type EventPage = components["schemas"]["EventPage"];
 export type SemanticDiff = components["schemas"]["SemanticDiff"];
 export type EditorialAction = "submit" | "return" | "approve" | "publish" | "withdraw" | "republish" | "archive";
-export type WorkspaceCollection = "works" | "instances" | "items";
+export type WorkspaceCollection = "works" | "instances" | "items" | "agents";
 
 export interface EditorialDashboard {
   state: EditorialState;
@@ -25,6 +26,9 @@ export interface EditorialDashboard {
 
 const readPermission = (collection: CatalogCollection) =>
   collection === "agents" || collection === "subjects" ? "authority:read" as const : "bibliographic:read" as const;
+
+const workspacePermission = (collection: WorkspaceCollection) =>
+  collection === "agents" ? "authority:manage" as const : "bibliographic:update" as const;
 
 const headersFor = (token: string, requestId: string) => ({
   Authorization: `Bearer ${token}`,
@@ -67,6 +71,27 @@ export async function getEditorialDashboard(
   }, options, readPermission(collection));
 }
 
+export async function getWorkspaceDashboard(
+  collection: WorkspaceCollection,
+  id: string,
+  options: CatalogRequestOptions = {},
+): Promise<EditorialDashboard> {
+  return executeCatalogRequest(async (client, context) => {
+    const result = await client.GET("/api/v1/catalog/{collection}/{id}/editorial", {
+      params: { path: { collection, id } },
+      headers: headersFor(context.accessToken, context.requestId),
+    });
+    return {
+      data: result.data ? {
+        state: result.data,
+        etag: result.response.headers.get("ETag"),
+      } : undefined,
+      error: result.error,
+      response: result.response,
+    };
+  }, options, readPermission(collection));
+}
+
 export async function getRevisionDiff(
   collection: CatalogCollection,
   id: string,
@@ -81,7 +106,7 @@ export async function getRevisionDiff(
 }
 
 export async function transitionEditorial(
-  collection: CatalogCollection,
+  collection: EditorialCommandCollection,
   id: string,
   action: EditorialAction,
   payload: components["schemas"]["TransitionRequest"],
@@ -117,7 +142,7 @@ export async function validateWorkspace(
   return executeCatalogRequest(async (client, context) => client.POST(
     "/api/v1/catalog/{collection}/{id}/workspace/validate",
     { params: { path: { collection, id }, header: { "if-match": ifMatch } }, headers: headersFor(context.accessToken, context.requestId) },
-  ), options, "bibliographic:update");
+  ), options, workspacePermission(collection));
 }
 
 export async function publishWorkspace(
@@ -132,5 +157,5 @@ export async function publishWorkspace(
       headers: headersFor(context.accessToken, context.requestId),
     });
     return { data: result.data ? { state: result.data, etag: result.response.headers.get("ETag") } : undefined, error: result.error, response: result.response };
-  }, options, "bibliographic:update");
+  }, options, workspacePermission(collection));
 }

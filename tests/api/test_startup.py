@@ -1,9 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
-from libris.core.config import Settings
-from libris.main import create_app
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncEngine
+
+from libris.core.config import Settings
+from libris.main import create_app
 
 
 def test_lifespan_and_health_without_external_services(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -38,6 +39,8 @@ def test_openapi_exposes_health_contract() -> None:
         "/api/v1/catalog/profiles/release",
         "/api/v1/catalog/{collection}/validation",
         "/api/v1/catalog/{collection}/{id}/relationships",
+        "/api/v1/catalog/{collection}/{id}/workspace/validate",
+        "/api/v1/catalog/{collection}/{id}/workspace/publish",
         "/api/v1/vocabularies",
         "/api/v1/vocabularies/{vocabulary_id}/concepts",
         "/api/v1/vocabularies/{vocabulary_id}/concepts/{concept_id}",

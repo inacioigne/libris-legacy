@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { messages, type Locale } from "../../i18n/messages";
-import type { CatalogCollection, EditorialDashboard, EditorialAction, SemanticDiff, WorkspaceCollection } from "../../server/catalog/editorial";
+import type { EditorialCommandCollection, EditorialDashboard, EditorialAction, SemanticDiff, WorkspaceCollection } from "../../server/catalog/editorial";
 import { compareRevisionsAction, editorialTransitionAction, publishWorkspaceAction, refreshEditorialAction, validateWorkspaceAction } from "../../server/catalog/editorial-actions";
 
-type Props = { collection: CatalogCollection; id: string; locale: Locale; permissions: string[]; initial: EditorialDashboard };
+type Props = { collection: EditorialCommandCollection; id: string; locale: Locale; permissions: string[]; initial: EditorialDashboard };
 
 const permission: Record<EditorialAction, string> = {
   submit: "editorial:submit", return: "editorial:return", approve: "editorial:approve",

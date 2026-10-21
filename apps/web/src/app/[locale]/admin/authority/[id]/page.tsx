@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EditorialPanel } from "@/components/catalog/EditorialPanel";
+import { AgentWorkspaceControl } from "@/components/catalog/AgentWorkspaceControl";
 import { isLocale, messages } from "@/i18n/messages";
 import { AdminFrame } from "@/server/admin/shell";
 import { getAgentForEditor } from "@/server/catalog/authorities";
-import { getEditorialDashboard } from "@/server/catalog/editorial";
+import { getWorkspaceDashboard } from "@/server/catalog/editorial";
 import { requireAdminPageAccess } from "../../page-access";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ lo
   if (!isLocale(locale)) notFound();
   const access = await requireAdminPageAccess(locale, { mode: "all", requiredPermissions: ["authority:read", "metadata_revision:read"] });
   const [{ agent }, editorial] = await Promise.all([
-    getAgentForEditor(id), getEditorialDashboard("agents", id, access.identity.permissions),
+    getAgentForEditor(id), getWorkspaceDashboard("agents", id),
   ]);
   const t = messages[locale];
   return <AdminFrame locale={locale}><main id="content" tabIndex={-1} className="space-y-6">
@@ -41,6 +41,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ lo
       <div><dt className="font-semibold">{t.agentProvenance}</dt><dd>{references(agent.provenance)}</dd></div>
       <div className="md:col-span-2"><dt className="font-semibold">{t.agentRelatedAuthorities}</dt><dd>{agent.related_authority?.length ? <pre className="overflow-auto whitespace-pre-wrap break-all text-sm">{JSON.stringify(agent.related_authority, null, 2)}</pre> : "—"}</dd></div>
     </dl>
-    <EditorialPanel collection="agents" id={id} locale={locale} permissions={access.identity.permissions} initial={editorial} />
+    <AgentWorkspaceControl id={id} locale={locale} permissions={access.identity.permissions} initial={editorial} />
   </main></AdminFrame>;
 }

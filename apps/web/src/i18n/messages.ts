@@ -5,6 +5,7 @@ export function isLocale(value: string): value is Locale {
 }
 export const messages = {
   pt: {
+    newAuthority: "Nova autoridade",
     agentCreateTitle: "Cadastrar agente",
     agentCreateDescription: "Cadastre uma autoridade bibliográfica. A API gera o UUID e a URI e salva o registro como rascunho.",
     agentVariantNames: "Nomes variantes",
@@ -22,7 +23,7 @@ export const messages = {
     agentFormSave: "Salvar agente como rascunho",
     agentFormSaving: "Salvando agente…",
     agentFormSaved: "Agente cadastrado com sucesso.",
-    agentFormDraftHelp: "O registro foi salvo como rascunho. A publicação depende do fluxo editorial.",
+    agentFormDraftHelp: "O registro foi salvo como rascunho. Abra o detalhe para validar e publicar.",
     agentFormInvalid: "Revise o tipo, os nomes, os idiomas, os identificadores e as URIs. Informe ao menos um nome autorizado e somente um por idioma.",
     agentCreateAnother: "Cadastrar outro agente",
     agentListDescription: "Consulte os agentes cadastrados como autoridades bibliográficas: pessoas e organizações.",
@@ -406,6 +407,7 @@ export const messages = {
     footer: "Libris · Gestão bibliotecária e Linked Data",
   },
   en: {
+    newAuthority: "New Authority",
     agentCreateTitle: "Create agent",
     agentCreateDescription: "Register a bibliographic authority. The API generates its UUID and URI and saves the record as a draft.",
     agentVariantNames: "Variant names",
@@ -423,7 +425,7 @@ export const messages = {
     agentFormSave: "Save agent as draft",
     agentFormSaving: "Saving agent…",
     agentFormSaved: "Agent created successfully.",
-    agentFormDraftHelp: "The record was saved as a draft. Publication requires the editorial workflow.",
+    agentFormDraftHelp: "The record was saved as a draft. Open its details to validate and publish.",
     agentFormInvalid: "Review the type, names, languages, identifiers and URIs. Enter at least one authorized name and only one per language.",
     agentCreateAnother: "Create another agent",
     agentListDescription: "Browse agents registered as bibliographic authorities: people and organizations.",

@@ -1,4 +1,4 @@
-// This file is generated from docs/architecture/catalogographic-openapi-v2-workspace.json.
+// This file is generated from docs/architecture/catalogographic-openapi-v3-agent-workspace.json.
 // Do not edit manually; regenerate with "npm run openapi:generate".
 
 /**
@@ -3095,7 +3095,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -3240,7 +3240,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -3385,7 +3385,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -3530,7 +3530,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -3675,7 +3675,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -3820,7 +3820,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -3965,7 +3965,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items" | "agents" | "subjects";
+                collection: "works" | "instances" | "items" | "subjects";
                 id: string;
             };
             cookie?: never;
@@ -5385,7 +5385,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items";
+                collection: "works" | "instances" | "items" | "agents";
                 id: string;
             };
             cookie?: never;
@@ -5524,7 +5524,7 @@ export interface operations {
                 "if-match": string;
             };
             path: {
-                collection: "works" | "instances" | "items";
+                collection: "works" | "instances" | "items" | "agents";
                 id: string;
             };
             cookie?: never;

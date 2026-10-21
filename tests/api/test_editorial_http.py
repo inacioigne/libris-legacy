@@ -5,11 +5,12 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from test_catalogographic_http import actor, actor_override
+
 from libris.core.config import Settings
 from libris.main import create_app
 from libris.modules.identity.api.dependencies import get_current_actor
 from libris.modules.identity.domain.permissions import Permission as P
-from test_catalogographic_http import actor, actor_override
 
 COMMANDS = [
     "submit",
@@ -33,10 +34,13 @@ QUERIES = [
 
 
 @pytest.mark.parametrize("action", ["validate", "publish"])
-def test_workspace_commands_without_request_body_reach_authorization(action: str) -> None:
+@pytest.mark.parametrize("collection", ["works", "agents"])
+def test_workspace_commands_without_request_body_reach_authorization(
+    action: str, collection: str
+) -> None:
     app = create_app(Settings(_env_file=None, app_env="test"))
     app.dependency_overrides[get_current_actor] = actor_override(actor())
-    path = f"/api/v1/catalog/works/{uuid4()}/workspace/{action}"
+    path = f"/api/v1/catalog/{collection}/{uuid4()}/workspace/{action}"
 
     with (
         TestClient(app) as client,
@@ -102,7 +106,12 @@ def test_editorial_anonymous_and_insufficient_permissions_before_storage(
             response = client.request(
                 method, path, json=body, headers={"If-Match": '"tag"'}
             )
-            assert response.status_code == 403, response.text
+            expected = (
+                422
+                if collection == "agents" and suffix.startswith("editorial/")
+                else 403
+            )
+            assert response.status_code == expected, response.text
             assert response.headers["content-type"] == "application/problem+json"
             assert response.json()["request_id"] == response.headers["x-request-id"]
 
@@ -189,12 +198,18 @@ def test_editorial_openapi_contract() -> None:
             parameter for parameter in workspace["parameters"] if parameter["name"] == "collection"
         )
         assert set(collection_parameter["schema"]["enum"]) == {
-            "works", "instances", "items"
+            "works", "instances", "items", "agents"
         }
     for command in COMMANDS:
         op = paths[base + "/editorial/" + command]["post"]
         assert op["security"] == [{"HTTPBearer": []}]
         assert any(p["name"] == "if-match" for p in op["parameters"])
+        collection_parameter = next(
+            parameter for parameter in op["parameters"] if parameter["name"] == "collection"
+        )
+        assert set(collection_parameter["schema"]["enum"]) == {
+            "works", "instances", "items", "subjects"
+        }
         assert set(op["responses"]) >= {
             "200",
             "400",
@@ -211,3 +226,17 @@ def test_editorial_openapi_contract() -> None:
             "content"
         ]
     )
+
+
+@pytest.mark.parametrize("command", COMMANDS)
+def test_agent_legacy_editorial_commands_are_not_routes(command: str) -> None:
+    app = create_app(Settings(_env_file=None, app_env="test"))
+    app.dependency_overrides[get_current_actor] = actor_override(actor(*P))
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/catalog/agents/{uuid4()}/editorial/{command}",
+            json={"selected_revision": 1},
+            headers={"If-Match": '"tag"'},
+        )
+    assert response.status_code == 422
+    assert response.json()["code"] == "schema.invalid"

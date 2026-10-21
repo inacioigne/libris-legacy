@@ -2,7 +2,7 @@
 
 import { messages, type Locale } from "../../i18n/messages";
 import { CatalogAccessError } from "./index";
-import { getEditorialDashboard, getRevisionDiff, publishWorkspace, transitionEditorial, validateWorkspace, type CatalogCollection, type EditorialAction, type WorkspaceCollection } from "./editorial";
+import { getEditorialDashboard, getRevisionDiff, getWorkspaceDashboard, publishWorkspace, transitionEditorial, validateWorkspace, type CatalogCollection, type EditorialAction, type EditorialCommandCollection, type WorkspaceCollection } from "./editorial";
 
 export type EditorialResult = { ok: boolean; status?: number; message?: string; dashboard?: Awaited<ReturnType<typeof getEditorialDashboard>>; diff?: Awaited<ReturnType<typeof getRevisionDiff>> };
 
@@ -28,7 +28,7 @@ export async function compareRevisionsAction(collection: CatalogCollection, id: 
   catch (error) { return failure(error, locale); }
 }
 
-export async function editorialTransitionAction(collection: CatalogCollection, id: string, action: EditorialAction, selectedRevision: number, scope: "record" | "candidate", justification: string, permissions: string[], locale: Locale, ifMatch: string): Promise<EditorialResult> {
+export async function editorialTransitionAction(collection: EditorialCommandCollection, id: string, action: EditorialAction, selectedRevision: number, scope: "record" | "candidate", justification: string, permissions: string[], locale: Locale, ifMatch: string): Promise<EditorialResult> {
   try {
     await transitionEditorial(collection, id, action, { selected_revision: selectedRevision, scope, justification: justification || null }, ifMatch);
     return { ok: true, message: messages[locale].editorialTransitionSuccess, dashboard: await getEditorialDashboard(collection, id, permissions) };
@@ -45,6 +45,8 @@ export async function validateWorkspaceAction(collection: WorkspaceCollection, i
 export async function publishWorkspaceAction(collection: WorkspaceCollection, id: string, permissions: string[], locale: Locale, ifMatch: string): Promise<EditorialResult> {
   try {
     await publishWorkspace(collection, id, ifMatch);
-    return { ok: true, message: messages[locale].workspacePublished, dashboard: await getEditorialDashboard(collection, id, permissions) };
+    return { ok: true, message: messages[locale].workspacePublished, dashboard: collection === "agents"
+      ? await getWorkspaceDashboard(collection, id)
+      : await getEditorialDashboard(collection, id, permissions) };
   } catch (error) { return failure(error, locale); }
 }

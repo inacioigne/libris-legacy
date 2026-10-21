@@ -1,4 +1,4 @@
-// This file is generated from docs/architecture/catalogographic-openapi-v2-workspace.json.
+// This file is generated from docs/architecture/catalogographic-openapi-v3-agent-workspace.json.
 // Do not edit manually; regenerate with "npm run openapi:generate".
 
 import createClient from "openapi-fetch";

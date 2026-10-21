@@ -1,6 +1,6 @@
 # Libris
 
-O frontend administrativo de Work, Instance e Item acompanha o
+O frontend administrativo de Work, Instance, Item e Agent acompanha o
 [workspace simplificado de catalogação](docs/architecture/cataloging-workspace.md):
 salvar rascunho, validar a revisão persistida e publicar com revalidação
 transacional. Registros históricos em etapas intermediárias continuam com um
@@ -12,10 +12,11 @@ O cadastro administrativo de Agent em `/pt/admin/authority/new` e
 `authority:manage`, formulário multilíngue e confirmação da identidade gerada
 pela API. Consulte o [escopo e as evidências datadas](docs/architecture/agent-create-verification-2026-10-20.md)
 para campos disponíveis, verificações e limites de integração.
-A consulta agora conduz ao detalhe e à edição protegida por ETag, e o detalhe
-expõe o ciclo editorial real de Agent para submissão, aprovação e publicação
-conforme as permissões efetivas. Consulte a
-[verificação complementar](docs/architecture/agent-editorial-verification-2026-10-20.md).
+A consulta agora conduz ao detalhe e à edição protegida por ETag. O detalhe de
+Agent oferece somente salvar rascunho, validar e publicar, sem submissão ou
+aprovação intermediárias; o relatório de 2026-10-20 permanece como evidência
+histórica do fluxo substituído. Consulte o
+[workspace atual](docs/architecture/cataloging-workspace.md).
 O mesmo fluxo administrativo está disponível para Subject em
 `/{locale}/admin/authority/subjects`, com criação, edição protegida por ETag e
 governança editorial. Consulte as

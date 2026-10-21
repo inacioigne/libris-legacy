@@ -221,13 +221,15 @@ class EditorialService:
         context: ExecutionContext,
         expected_version: int,
         expected_current_revision: int,
+        operation: Operation = Operation.CATALOG_WORKSPACE_VALIDATE,
+        resource_kind: ResourceKind = ResourceKind.BIBLIOGRAPHIC,
     ) -> PublicationReadiness:
         resolved = execution_context(context, None)
         try:
             self.authorization.require(
                 context=resolved,
-                operation=Operation.CATALOG_WORKSPACE_VALIDATE,
-                resource=ResourceContext(ResourceKind.BIBLIOGRAPHIC, resource_id=identifier),
+                operation=operation,
+                resource=ResourceContext(resource_kind, resource_id=identifier),
             )
         except PermissionDenied as error:
             raise EditorialPermissionDenied() from error
@@ -249,13 +251,15 @@ class EditorialService:
         context: ExecutionContext,
         expected_version: int,
         expected_current_revision: int,
+        operation: Operation = Operation.CATALOG_WORKSPACE_PUBLISH,
+        resource_kind: ResourceKind = ResourceKind.BIBLIOGRAPHIC,
     ) -> PreparedTransition:
         resolved = execution_context(context, None)
         try:
             self.authorization.require(
                 context=resolved,
-                operation=Operation.CATALOG_WORKSPACE_PUBLISH,
-                resource=ResourceContext(ResourceKind.BIBLIOGRAPHIC, resource_id=identifier),
+                operation=operation,
+                resource=ResourceContext(resource_kind, resource_id=identifier),
             )
         except PermissionDenied as error:
             raise EditorialPermissionDenied() from error

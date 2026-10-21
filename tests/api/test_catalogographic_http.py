@@ -11,6 +11,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, ValidationError
+
 from libris import main
 from libris.api.problems import classify, handle_request_validation
 from libris.core.config import Settings
@@ -35,7 +37,6 @@ from libris.modules.identity.domain.authorization import ResourceContext, Resour
 from libris.modules.identity.domain.exceptions import PermissionDenied
 from libris.modules.identity.domain.models import AuthenticatedActor, actor_identifier
 from libris.modules.identity.domain.permissions import Permission as P
-from pydantic import BaseModel, ValidationError
 
 
 def actor(*permissions: P) -> AuthenticatedActor:
@@ -113,6 +114,8 @@ def test_openapi_only_describes_real_operations_and_schemas() -> None:
             "/api/v1/catalog/profiles/release",
             "/api/v1/catalog/{collection}/validation",
             "/api/v1/catalog/{collection}/{id}/relationships",
+            "/api/v1/catalog/{collection}/{id}/workspace/validate",
+            "/api/v1/catalog/{collection}/{id}/workspace/publish",
         } | {
             "/api/v1/catalog/{collection}/{id}/" + suffix
             for suffix in (
@@ -134,7 +137,7 @@ def test_openapi_only_describes_real_operations_and_schemas() -> None:
         }
         assert schema["info"]["version"] == "0.1.0"
         operations = [op for path in schema["paths"].values() for op in path.values()]
-        assert len({op["operationId"] for op in operations}) == 53
+        assert len({op["operationId"] for op in operations}) == 55
         for path, model in (
             ("/health", "HealthResponse"),
             ("/api/v1/identity/me", "IdentityResponse"),

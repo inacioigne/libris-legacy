@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CatalogAccessError } from "../src/server/catalog";
 import { changeAuthorityRelation, createAgent, createSubject, getAgentForEditor, getAuthority, getAuthorityRelations, getSubjectForEditor, listAuthorities, updateAgent, updateSubject } from "../src/server/catalog/authorities";
+import { getWorkspaceDashboard, publishWorkspace, validateWorkspace } from "../src/server/catalog/editorial";
 import { authorityReference, referenceKey, sameLink, selectedLink } from "../src/catalog/authorities";
 import { AuthService } from "../src/server/auth/service";
 import { OpenIdProvider } from "../src/server/auth/oidc";
@@ -80,6 +81,53 @@ test("Agent editor reads and updates through the generated endpoints with an exa
   assert.deepEqual(await requests[1].json(), { authorized_name: [{ value: "Alex updated" }] });
   await assert.rejects(updateAgent(agent.internal_id, {}, options), (error: unknown) => error instanceof CatalogAccessError && error.status === 428);
   assert.equal(requests.length, 2);
+});
+
+test("Agent workspace reads state, validates and publishes with authority:manage", async t => {
+  const options = await fixture(["authority:manage", "authority:read", "metadata_revision:read"]), requests: Request[] = [];
+  const mutationOptions = { ...options, requestHeaders: new Headers({
+    Origin: options.service.config.origin,
+    Host: new URL(options.service.config.origin).host,
+    "Sec-Fetch-Site": "same-origin",
+  }) };
+  t.mock.method(globalThis, "fetch", async (request: Request) => {
+    requests.push(request.clone());
+    const published = request.url.endsWith("/workspace/publish");
+    return new Response(JSON.stringify({
+      internal_id: agent.internal_id, editorial_state: published ? "published" : "draft",
+      current_revision: 1, candidate_state: published ? null : "draft", candidate_revision: published ? null : 1,
+      approved_revision: published ? 1 : null, published_revision: published ? 1 : null,
+      public_revision: published ? 1 : null, editorial_version: published ? 2 : 1,
+      ...(request.url.endsWith("/workspace/validate") ? { ready: true, revision: 1 } : {}),
+    }), { headers: { "Content-Type": "application/json", ETag: published ? '"p2"' : '"d1"' } });
+  });
+  const dashboard = await getWorkspaceDashboard("agents", agent.internal_id, options);
+  assert.equal(dashboard.etag, '"d1"');
+  assert.equal((await validateWorkspace("agents", agent.internal_id, '"d1"', mutationOptions)).ready, true);
+  assert.equal((await publishWorkspace("agents", agent.internal_id, '"d1"', mutationOptions)).state.editorial_state, "published");
+  assert.deepEqual(requests.map(request => new URL(request.url).pathname), [
+    `/api/v1/catalog/agents/${agent.internal_id}/editorial`,
+    `/api/v1/catalog/agents/${agent.internal_id}/workspace/validate`,
+    `/api/v1/catalog/agents/${agent.internal_id}/workspace/publish`,
+  ]);
+  assert.equal(requests[1].headers.get("if-match"), '"d1"');
+  assert.equal(requests[2].headers.get("if-match"), '"d1"');
+});
+
+test("Agent workspace rejects a session without authority:manage before mutation", async t => {
+  const options = await fixture(["authority:read", "metadata_revision:read"]);
+  const mutationOptions = { ...options, requestHeaders: new Headers({
+    Origin: options.service.config.origin,
+    Host: new URL(options.service.config.origin).host,
+    "Sec-Fetch-Site": "same-origin",
+  }) };
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => { calls++; throw new Error("unexpected request"); });
+  await assert.rejects(validateWorkspace("agents", agent.internal_id, '"d1"', mutationOptions),
+    (error: unknown) => error instanceof CatalogAccessError && error.status === 403);
+  await assert.rejects(publishWorkspace("agents", agent.internal_id, '"d1"', mutationOptions),
+    (error: unknown) => error instanceof CatalogAccessError && error.status === 403);
+  assert.equal(calls, 0);
 });
 
 test("Subject create/read/update use authority permissions and exact ETags", async t => {

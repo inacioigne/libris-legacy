@@ -47,7 +47,18 @@ router = APIRouter(route_class=BoundedCatalogRoute, tags=["catalog-editorial"])
 Context = Annotated[HumanContext, Depends(get_execution_context)]
 IfMatch = Annotated[str, Depends(get_if_match)]
 Positive = Annotated[int, Query(gt=0)]
-WorkspaceCollection = Literal["works", "instances", "items"]
+WorkspaceCollection = Literal["works", "instances", "items", "agents"]
+EditorialCommandCollection = Literal["works", "instances", "items", "subjects"]
+
+
+def workspace_operation(collection: WorkspaceCollection, *, publish: bool) -> Operation:
+    if collection == "agents":
+        return (
+            Operation.AUTHORITY_WORKSPACE_PUBLISH
+            if publish
+            else Operation.AUTHORITY_WORKSPACE_VALIDATE
+        )
+    return Operation.CATALOG_WORKSPACE_PUBLISH if publish else Operation.CATALOG_WORKSPACE_VALIDATE
 
 
 def get_editorial_service(
@@ -99,7 +110,7 @@ async def editorial_state(
 
 
 async def command(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -147,7 +158,7 @@ async def validate_workspace(
         profile_for(collection),
         COLLECTIONS[collection][2],
         context,
-        Operation.CATALOG_WORKSPACE_VALIDATE,
+        workspace_operation(collection, publish=False),
     )
     require_if_match(if_match, current_etag=editing_etag(view.catalog))
     revision_number = await service.validate_workspace(view, context)
@@ -172,7 +183,7 @@ async def publish_workspace(
         profile_for(collection),
         COLLECTIONS[collection][2],
         context,
-        Operation.CATALOG_WORKSPACE_PUBLISH,
+        workspace_operation(collection, publish=True),
     )
     require_if_match(if_match, current_etag=editing_etag(view.catalog))
     changed = await service.publish_workspace(view, context)
@@ -182,7 +193,7 @@ async def publish_workspace(
 
 @router.post("/{collection}/{id}/editorial/submit", response_model=EditorialStateRead)
 async def submit(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -197,7 +208,7 @@ async def submit(
 
 @router.post("/{collection}/{id}/editorial/approve", response_model=EditorialStateRead)
 async def approve(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -212,7 +223,7 @@ async def approve(
 
 @router.post("/{collection}/{id}/editorial/publish", response_model=EditorialStateRead)
 async def publish(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -227,7 +238,7 @@ async def publish(
 
 @router.post("/{collection}/{id}/editorial/return", response_model=EditorialStateRead)
 async def return_for_editing(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -242,7 +253,7 @@ async def return_for_editing(
 
 @router.post("/{collection}/{id}/editorial/withdraw", response_model=EditorialStateRead)
 async def withdraw(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -257,7 +268,7 @@ async def withdraw(
 
 @router.post("/{collection}/{id}/editorial/republish", response_model=EditorialStateRead)
 async def republish(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,
@@ -272,7 +283,7 @@ async def republish(
 
 @router.post("/{collection}/{id}/editorial/archive", response_model=EditorialStateRead)
 async def archive(
-    collection: Collection,
+    collection: EditorialCommandCollection,
     id: UUID,
     payload: TransitionRequest,
     response: Response,

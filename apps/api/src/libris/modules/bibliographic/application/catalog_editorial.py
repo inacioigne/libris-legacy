@@ -145,6 +145,7 @@ class CatalogEditorialService(CatalogService):
         self, expected: EditorialView, context: HumanContext
     ) -> int:
         identifier = expected.catalog.revision.identity.internal_id
+        authority = expected.catalog.revision.profile == AUTHORITY_PROFILE_ID
         readiness = await EditorialService(
             self.workspace_transactions(context, "http:workspace:validate"),
             authorization=self.authorization,
@@ -153,6 +154,12 @@ class CatalogEditorialService(CatalogService):
             context=context,
             expected_version=expected.catalog.editorial_version or 1,
             expected_current_revision=expected.catalog.revision.number,
+            operation=(
+                Operation.AUTHORITY_WORKSPACE_VALIDATE
+                if authority
+                else Operation.CATALOG_WORKSPACE_VALIDATE
+            ),
+            resource_kind=ResourceKind.AUTHORITY if authority else ResourceKind.BIBLIOGRAPHIC,
         )
         return readiness.revision
 
@@ -160,6 +167,7 @@ class CatalogEditorialService(CatalogService):
         self, expected: EditorialView, context: HumanContext
     ) -> EditorialView:
         identifier = expected.catalog.revision.identity.internal_id
+        authority = expected.catalog.revision.profile == AUTHORITY_PROFILE_ID
         change = await EditorialService(
             self.workspace_transactions(context, "http:workspace:publish"),
             authorization=self.authorization,
@@ -168,6 +176,12 @@ class CatalogEditorialService(CatalogService):
             context=context,
             expected_version=expected.catalog.editorial_version or 1,
             expected_current_revision=expected.catalog.revision.number,
+            operation=(
+                Operation.AUTHORITY_WORKSPACE_PUBLISH
+                if authority
+                else Operation.CATALOG_WORKSPACE_PUBLISH
+            ),
+            resource_kind=ResourceKind.AUTHORITY if authority else ResourceKind.BIBLIOGRAPHIC,
         )
         return EditorialView(
             CatalogView(expected.catalog.revision, expected.catalog.resource, change.after.version),
