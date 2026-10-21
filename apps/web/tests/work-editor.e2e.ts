@@ -61,7 +61,7 @@ test("Work editor in Chromium: pt/en, accessibility, validation, repeaters, 412 
       const tree = await b.send("Accessibility.getFullAXTree");
       const nodes = tree.nodes as { role?: { value: string }; name?: { value: string }; ignored?: boolean }[];
       assert.ok(nodes.filter(node => node.role?.value === "textbox" && !node.ignored).every(node => Boolean(node.name?.value)));
-      assert.ok(nodes.some(node => node.role?.value === "button" && node.name?.value.includes(locale === "en" ? "Save work" : "Salvar obra")));
+      assert.ok(nodes.some(node => node.role?.value === "button" && node.name?.value.includes(locale === "en" ? "Save work as draft" : "Salvar obra como rascunho")));
     }
     await navigate("/?locale=en");
     await b.evaluate(`${field('/title/0/main_title/0/value')}.focus()`);
@@ -73,7 +73,7 @@ test("Work editor in Chromium: pt/en, accessibility, validation, repeaters, 412 
     await fill("/language/2/uri", "urn:language:test");
     await clickText("Remove — Languages 3");
     await fill("/title/0/main_title/0/value", "Local title");
-    await clickText("Save work");
+    await clickText("Save work as draft");
     await until(b, "document.querySelector('[role=alert]')?.textContent.includes('newer version')");
     assert.equal(await b.evaluate(`${field('/title/0/main_title/0/value')}.value`), "Local title");
     assert.equal(await b.evaluate("window.submissions.length"), 1);
@@ -89,18 +89,18 @@ test("Work editor in Chromium: pt/en, accessibility, validation, repeaters, 412 
     assert.equal(await b.evaluate(`${field('/note/0/label/0/value')}.value`), "Remote note");
     assert.equal(await b.evaluate("window.submissions.length"), 1);
     await b.evaluate("window.nextStatus = 422");
-    await clickText("Save work");
+    await clickText("Save work as draft");
     await until(b, "document.activeElement.name === '/language/0/uri'");
     assert.equal(await b.evaluate(`${field('/language/0/uri')}.getAttribute('aria-invalid')`), "true");
     assert.equal(await b.evaluate(`${field('/title/0/main_title/0/value')}.value`), "Local title");
     for (const status of [401, 403, 409]) {
       await b.evaluate(`window.nextStatus = ${status}`);
-      await clickText("Save work");
+      await clickText("Save work as draft");
       await until(b, "!document.querySelector('button[type=submit]').disabled");
       assert.equal(await b.evaluate(`${field('/title/0/main_title/0/value')}.value`), "Local title");
     }
     await b.evaluate("window.nextStatus = 200");
-    await clickText("Save work");
+    await clickText("Save work as draft");
     await until(b, "document.querySelector('input[name=ifMatch]').value === '\"saved\"'");
     assert.equal(await b.evaluate("window.currentWork.note[0].label[0].value"), "Remote note");
     assert.deepEqual(await b.evaluate("Object.keys(window.submissions.at(-1).payload)"), ["title"]);
@@ -121,11 +121,11 @@ test("Work editor in Chromium: pt/en, accessibility, validation, repeaters, 412 
     await clickText("Apply choices and continue editing");
     await until(b, `${field('/title/0/main_title/0/value')}.value === 'Local title'`);
     await navigate("/?locale=pt&create=1");
-    await clickText("Salvar obra");
+    await clickText("Salvar obra como rascunho");
     assert.equal(await b.evaluate("window.submissions.length"), 0);
     await fill("/title/0/main_title/0/value", "Nova obra");
     await b.evaluate("window.nextStatus = 200");
-    await clickText("Salvar obra");
+    await clickText("Salvar obra como rascunho");
     await until(b, "window.submissions.length === 1");
     assert.equal(await b.evaluate("window.submissions[0].payload.title[0].main_title[0].value"), "Nova obra");
   } finally {

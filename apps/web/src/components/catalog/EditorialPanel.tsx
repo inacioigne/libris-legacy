@@ -25,6 +25,11 @@ function permitted(state: EditorialDashboard["state"], action: EditorialAction):
   return state.editorial_state === "withdrawn";
 }
 
+function isLegacyWorkspaceState(state: EditorialDashboard["state"]): boolean {
+  const current = state.candidate_state ?? state.editorial_state;
+  return current === "in_review" || current === "approved";
+}
+
 export function EditorialPanel({ collection, id, locale, permissions, initial }: Props) {
   const t = messages[locale];
   const [dashboard, setDashboard] = useState(initial);
@@ -38,7 +43,12 @@ export function EditorialPanel({ collection, id, locale, permissions, initial }:
   const workspaceCollection = collection as WorkspaceCollection;
   const currentRevision = state.candidate_revision ?? state.current_revision;
   const scope = state.candidate_revision === currentRevision && state.public_revision !== currentRevision ? "candidate" : "record";
-  const actions = isWorkspace ? [] : (Object.keys(permission) as EditorialAction[]).filter(action => permissions.includes(permission[action]) && permitted(state, action));
+  const legacyWorkspace = isWorkspace && isLegacyWorkspaceState(state);
+  const actions = (Object.keys(permission) as EditorialAction[]).filter(action =>
+    permissions.includes(permission[action])
+    && permitted(state, action)
+    && (!isWorkspace || legacyWorkspace),
+  );
   const workspaceDraft = state.candidate_state === "draft" || state.editorial_state === "draft";
   const canUseWorkspace = isWorkspace && workspaceDraft && permissions.includes("bibliographic:update");
 
@@ -72,7 +82,7 @@ export function EditorialPanel({ collection, id, locale, permissions, initial }:
     setFeedback(result.message); setBusy(false);
   }
   async function publishDraft() {
-    if (!window.confirm(t.editorialConfirm)) return;
+    if (!window.confirm(t.workspacePublishConfirm)) return;
     setBusy(true); setFeedback(undefined);
     const result = await publishWorkspaceAction(workspaceCollection, id, permissions, locale, dashboard.etag ?? "");
     if (result.dashboard) setDashboard(result.dashboard);
@@ -92,11 +102,19 @@ export function EditorialPanel({ collection, id, locale, permissions, initial }:
     </dl>
     {feedback && <p role="status" className="rounded-lg border p-3">{feedback}</p>}
 
-    {canUseWorkspace && <div className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t.editorialActions}</h3>
+    {isWorkspace && <ol className="grid gap-3 border-t pt-4 sm:grid-cols-3" aria-label={t.workspaceFlowLabel}>
+      <li className="rounded-lg border p-3"><strong>1. {t.workspaceSaveDraft}</strong><p className="mt-1 text-sm">{t.workspaceSaveDraftHelp}</p></li>
+      <li className="rounded-lg border p-3"><strong>2. {t.workspaceValidate}</strong><p className="mt-1 text-sm">{t.workspaceValidateHelp}</p></li>
+      <li className="rounded-lg border p-3"><strong>3. {t.workspacePublish}</strong><p className="mt-1 text-sm">{t.workspacePublishHelp}</p></li>
+    </ol>}
+
+    {canUseWorkspace && <div className="space-y-3"><h3 className="font-semibold">{t.workspaceActions}</h3>
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={busy} onClick={validateDraft} className="rounded-lg border border-teal-700 px-3 py-2 text-teal-800 disabled:opacity-50 dark:text-teal-200">{t.workspaceValidate}</button>
         <button type="button" disabled={busy} onClick={publishDraft} className="rounded-lg bg-teal-700 px-3 py-2 text-white disabled:opacity-50">{t.workspacePublish}</button>
       </div><p className="text-sm">{t.workspaceActionHelp}</p></div>}
+
+    {legacyWorkspace && <p role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">{t.workspaceLegacyHelp}</p>}
 
     {actions.length > 0 && <div className="space-y-3 border-t pt-4"><h3 className="font-semibold">{t.editorialActions}</h3>
       {actions.some(action => requiresReason.has(action)) && <label className="block text-sm">{t.editorialReason}<textarea value={reason} onChange={event => setReason(event.target.value)} className="mt-1 block w-full rounded border p-2" rows={2} /></label>}

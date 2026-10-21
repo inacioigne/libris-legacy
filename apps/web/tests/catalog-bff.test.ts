@@ -6,6 +6,7 @@ import { OpenIdProvider } from "../src/server/auth/oidc";
 import { randomId } from "../src/server/auth/security";
 import { config, MemoryStore, json } from "./helpers";
 import { richWork } from "./work-editor-fixture";
+import { publishWorkspace, validateWorkspace } from "../src/server/catalog/editorial";
 
 async function fixture(permissions = ["bibliographic:read", "bibliographic:create", "bibliographic:update"]) {
   const cfg = config(), store = new MemoryStore(), sessionId = randomId();
@@ -60,6 +61,42 @@ test("catalog actions origin protection rejects missing/foreign origin, spoofed 
   await requireCatalogMutationOrigin({ ...options, requestHeaders: new Headers(valid) });
   for (const override of [{ Origin: "" }, { Origin: "https://evil.invalid" }, { Host: "evil.invalid" }, { "Sec-Fetch-Site": "cross-site" }])
     await assert.rejects(requireCatalogMutationOrigin({ ...options, requestHeaders: new Headers({ ...valid, ...override }) }), (e: unknown) => e instanceof CatalogAccessError && e.status === 403);
+});
+
+test("workspace validates and publishes Work, Instance and Item through the generated client with exact ETag", async t => {
+  const options = await fixture(["bibliographic:read", "bibliographic:update"]);
+  const validOrigin = {
+    Origin: options.service.config.origin,
+    Host: new URL(options.service.config.origin).host,
+    "Sec-Fetch-Site": "same-origin",
+  };
+  const requests: Request[] = [];
+  t.mock.method(globalThis, "fetch", async (request: Request) => {
+    requests.push(request.clone());
+    const validation = request.url.endsWith("/workspace/validate");
+    return new Response(JSON.stringify(validation
+      ? { ready: true, revision: 4 }
+      : { editorial_state: "published", current_revision: 4, published_revision: 4, public_revision: 4 }), {
+      headers: { "Content-Type": "application/json", ETag: '"workspace-v2"' },
+    });
+  });
+  const mutationOptions = { ...options, requestHeaders: new Headers(validOrigin) };
+  for (const collection of ["works", "instances", "items"] as const) {
+    assert.deepEqual(await validateWorkspace(collection, richWork.internal_id, '"workspace-v1"', mutationOptions), { ready: true, revision: 4 });
+    const published = await publishWorkspace(collection, richWork.internal_id, '"workspace-v1"', mutationOptions);
+    assert.equal(published.state.editorial_state, "published");
+    assert.equal(published.etag, '"workspace-v2"');
+  }
+  assert.deepEqual(requests.map(request => new URL(request.url).pathname.split("/").slice(-4)), [
+    ["works", richWork.internal_id, "workspace", "validate"], ["works", richWork.internal_id, "workspace", "publish"],
+    ["instances", richWork.internal_id, "workspace", "validate"], ["instances", richWork.internal_id, "workspace", "publish"],
+    ["items", richWork.internal_id, "workspace", "validate"], ["items", richWork.internal_id, "workspace", "publish"],
+  ]);
+  for (const request of requests) {
+    assert.equal(request.method, "POST");
+    assert.equal(request.headers.get("if-match"), '"workspace-v1"');
+    assert.equal(request.headers.get("authorization"), "Bearer synthetic-access-secret");
+  }
 });
 
 

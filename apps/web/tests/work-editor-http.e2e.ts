@@ -96,7 +96,7 @@ test("Work browser -> real Next actions/BFF -> signed JWT/FastAPI -> disposable 
     await until(browser, "!!document.querySelector('input[name=payload]') && !!Object.keys(document.querySelector('form[aria-busy]')).find(k => k.startsWith('__reactProps'))");
     const fill = async (value: string) => browser!.evaluate(`(() => { const input = document.querySelector('input[name="/title/0/main_title/0/value"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     const click = async (text: string) => browser!.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(text)}).click()`);
-    await fill("Created in browser"); await click("Save work");
+    await fill("Created in browser"); await click("Save work as draft");
     await until(browser, "location.pathname.split('/').at(-1)?.length === 36 && document.body.textContent.includes('Created in browser')");
     const path = await browser.evaluate("location.pathname") as string;
     const id = path.split("/").at(-1)!;
@@ -112,14 +112,14 @@ test("Work browser -> real Next actions/BFF -> signed JWT/FastAPI -> disposable 
     await fill("My local revision");
     const first = await fetch(apiPath, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json", "If-Match": created.headers.get("etag")! }, body: JSON.stringify({ note: [{ label: [{ value: "Concurrent persisted note", language: "en" }] }] }) });
     assert.equal(first.status, 200);
-    await click("Save work");
+    await click("Save work as draft");
     await until(browser, "document.querySelector('[role=alert]')?.textContent.includes('newer version')");
     assert.equal(await browser.evaluate("document.querySelector('input[name=\"/title/0/main_title/0/value\"]').value"), "My local revision");
     await click("Load current version for comparison");
     await until(browser, "!!document.querySelector('input[name=\"choice-title\"]')");
     await browser.evaluate("document.querySelector('input[name=\"choice-title\"]').click()");
     await click("Apply choices and continue editing");
-    await click("Save work");
+    await click("Save work as draft");
     await until(browser, "document.querySelector('[role=status]')?.textContent.includes('No pending changes')");
     const saved = await fetch(apiPath, { headers }), data = await saved.json();
     assert.equal(data.title[0].main_title[0].value, "My local revision");

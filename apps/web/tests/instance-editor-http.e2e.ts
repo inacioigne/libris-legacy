@@ -104,7 +104,7 @@ test("Instance browser -> real Next actions/BFF -> signed JWT/FastAPI -> disposa
     await until(browser, "document.body.textContent.includes('Existing Work')");
     await click("Select this Work");
     await click("Add — Titles and variants");
-    await fill("Created in browser"); await click("Save instance");
+    await fill("Created in browser"); await click("Save instance as draft");
     await until(browser, "location.pathname.split('/').at(-1)?.length === 36 && document.body.textContent.includes('Created in browser')");
     const path = await browser.evaluate("location.pathname") as string;
     const id = path.split("/").at(-1)!;
@@ -122,14 +122,14 @@ test("Instance browser -> real Next actions/BFF -> signed JWT/FastAPI -> disposa
     await fill("My local revision");
     const first = await fetch(apiPath, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json", "If-Match": created.headers.get("etag")! }, body: JSON.stringify({ note: [{ label: [{ value: "Concurrent persisted note", language: "en" }] }] }) });
     assert.equal(first.status, 200);
-    await click("Save instance");
+    await click("Save instance as draft");
     await until(browser, "document.querySelector('[role=alert]')?.textContent.includes('newer version')");
     assert.equal(await browser.evaluate("document.querySelector('input[name=\"/title/0/main_title/0/value\"]').value"), "My local revision");
     await click("Load current version for comparison");
     await until(browser, "!!document.querySelector('input[name=\"choice-title\"]')");
     await browser.evaluate("document.querySelector('input[name=\"choice-title\"]').click()");
     await click("Apply choices and continue editing");
-    await click("Save instance");
+    await click("Save instance as draft");
     await until(browser, "document.querySelector('[role=status]')?.textContent.includes('No pending changes')");
     const saved = await fetch(apiPath, { headers }), data = await saved.json();
     assert.equal(data.title[0].main_title[0].value, "My local revision");

@@ -64,7 +64,7 @@ test("Instance editor in Chromium: pt/en, accessibility, validation, repeaters, 
       const tree = await b.send("Accessibility.getFullAXTree");
       const nodes = tree.nodes as { role?: { value: string }; name?: { value: string }; ignored?: boolean }[];
       assert.ok(nodes.filter(node => node.role?.value === "textbox" && !node.ignored).every(node => Boolean(node.name?.value)));
-      assert.ok(nodes.some(node => node.role?.value === "button" && node.name?.value.includes(locale === "en" ? "Save instance" : "Salvar instância")));
+      assert.ok(nodes.some(node => node.role?.value === "button" && node.name?.value.includes(locale === "en" ? "Save instance as draft" : "Salvar instância como rascunho")));
     }
     await navigate("/?locale=en&empty=1");
     assert.equal(await b.evaluate("document.body.textContent.includes('No instances found.')"), true);
@@ -78,7 +78,7 @@ test("Instance editor in Chromium: pt/en, accessibility, validation, repeaters, 
     await fill("/carrier/1/uri", "urn:carrier:test");
     await clickText("Remove — Carrier (URI) 2");
     await fill("/title/0/main_title/0/value", "Local title");
-    await clickText("Save instance");
+    await clickText("Save instance as draft");
     assert.equal(await b.evaluate("document.querySelector('form[aria-busy]').getAttribute('aria-busy')"), "true");
     await until(b, "document.querySelector('[role=alert]')?.textContent.includes('newer version')");
     assert.equal(await b.evaluate(`${field('/title/0/main_title/0/value')}.value`), "Local title");
@@ -95,18 +95,18 @@ test("Instance editor in Chromium: pt/en, accessibility, validation, repeaters, 
     assert.equal(await b.evaluate(`${field('/note/0/label/0/value')}.value`), "Remote note");
     assert.equal(await b.evaluate("window.instanceSubmissions.length"), 1);
     await b.evaluate("window.nextInstanceStatus = 422");
-    await clickText("Save instance");
+    await clickText("Save instance as draft");
     await until(b, "document.activeElement.name === '/carrier/0/uri'");
     assert.equal(await b.evaluate(`${field('/carrier/0/uri')}.getAttribute('aria-invalid')`), "true");
     assert.equal(await b.evaluate(`${field('/title/0/main_title/0/value')}.value`), "Local title");
     for (const status of [401, 403, 409]) {
       await b.evaluate(`window.nextInstanceStatus = ${status}`);
-      await clickText("Save instance");
+      await clickText("Save instance as draft");
       await until(b, "!document.querySelector('button[type=submit]').disabled");
       assert.equal(await b.evaluate(`${field('/title/0/main_title/0/value')}.value`), "Local title");
     }
     await b.evaluate("window.nextInstanceStatus = 200");
-    await clickText("Save instance");
+    await clickText("Save instance as draft");
     await until(b, "document.querySelector('input[name=ifMatch]').value === '\"saved\"'");
     assert.equal(await b.evaluate("window.currentInstance.note[0].label[0].value"), "Remote note");
     assert.deepEqual(await b.evaluate("Object.keys(window.instanceSubmissions.at(-1).payload)"), ["title"]);
@@ -127,7 +127,7 @@ test("Instance editor in Chromium: pt/en, accessibility, validation, repeaters, 
     await clickText("Apply choices and continue editing");
     await until(b, `${field('/title/0/main_title/0/value')}.value === 'Local title'`);
     await navigate("/?locale=pt&create=1");
-    await clickText("Salvar instância");
+    await clickText("Salvar instância como rascunho");
     assert.equal(await b.evaluate("window.instanceSubmissions.length"), 0);
     await clickText("Consultar obras por UUID ou URI exatos");
     await until(b, "document.body.textContent.includes('Selecionar esta obra')");
@@ -135,7 +135,7 @@ test("Instance editor in Chromium: pt/en, accessibility, validation, repeaters, 
     await clickText("Adicionar — Títulos e variantes");
     await fill("/title/0/main_title/0/value", "Nova obra");
     await b.evaluate("window.nextInstanceStatus = 200");
-    await clickText("Salvar instância");
+    await clickText("Salvar instância como rascunho");
     await until(b, "window.instanceSubmissions.length === 1");
     assert.equal(await b.evaluate("window.instanceSubmissions[0].payload.title[0].main_title[0].value"), "Nova obra");
     assert.equal(await b.evaluate("window.instanceSubmissions[0].payload.instance_of.kind"), "local");

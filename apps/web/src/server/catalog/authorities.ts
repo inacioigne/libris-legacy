@@ -19,7 +19,7 @@ export async function getAgentForEditor(id: string, options: CatalogRequestOptio
       params: { path: { id } },
       headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private", Accept: "application/json" },
     });
-    return { ...result, data: result.data ? { agent: result.data, etag: result.response.headers.get("ETag") } : undefined };
+    return { ...result, data: result.data ? { agent: result.data as components["schemas"]["AgentRead"], etag: result.response.headers.get("ETag") } : undefined };
   }, options, "authority:read");
 }
 export async function updateAgent(id: string, payload: components["schemas"]["AgentUpdate"], options: CatalogRequestOptions = {}): Promise<AgentEnvelope> {
@@ -40,7 +40,7 @@ export async function createSubject(payload: components["schemas"]["SubjectCreat
 export async function getSubjectForEditor(id: string, options: CatalogRequestOptions = {}): Promise<SubjectEnvelope> {
   return executeCatalogRequest(async (client, context) => { const result = await client.GET("/api/v1/catalog/subjects/{id}", { params: { path: { id } },
     headers: { Authorization: `Bearer ${context.accessToken}`, "X-Request-ID": context.requestId, "Cache-Control": "no-store, private", Accept: "application/json" } });
-    return { ...result, data: result.data ? { subject: result.data, etag: result.response.headers.get("ETag") } : undefined }; }, options, "authority:read");
+    return { ...result, data: result.data ? { subject: result.data as components["schemas"]["SubjectRead"], etag: result.response.headers.get("ETag") } : undefined }; }, options, "authority:read");
 }
 export async function updateSubject(id: string, payload: components["schemas"]["SubjectUpdate"], options: CatalogRequestOptions = {}): Promise<SubjectEnvelope> {
   if (!options.ifMatch?.trim()) throw new CatalogAccessError(428, "precondition_failed");

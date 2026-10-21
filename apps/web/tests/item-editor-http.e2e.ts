@@ -111,7 +111,7 @@ test("Work → Instance → Item browser -> real Next actions/BFF -> signed JWT/
     await fill("Created in browser");
     await click("Validate before creating");
     await until(browser, "document.body.textContent.includes('Prevalidation completed without violations')");
-    await click("Save Item");
+    await click("Save Item as draft");
     await until(browser, "location.pathname.split('/').at(-1)?.length === 36 && document.body.textContent.includes('Created in browser')");
     const path = await browser.evaluate("location.pathname") as string;
     const id = path.split("/").at(-1)!;
@@ -129,14 +129,14 @@ test("Work → Instance → Item browser -> real Next actions/BFF -> signed JWT/
     await fill("My local revision");
     const first = await fetch(apiPath, { method: "PATCH", headers: { ...headers, "Content-Type": "application/json", "If-Match": created.headers.get("etag")! }, body: JSON.stringify({ note: [{ label: [{ value: "Concurrent persisted note", language: "en" }] }] }) });
     assert.equal(first.status, 200);
-    await click("Save Item");
+    await click("Save Item as draft");
     await until(browser, "document.querySelector('[role=alert]')?.textContent.includes('newer version')");
     assert.equal(await browser.evaluate("document.querySelector('input[name=\"/identified_by/0/value\"]').value"), "My local revision");
     await click("Load current version for comparison");
     await until(browser, "!!document.querySelector('input[name=\"choice-identified_by\"]')");
     await browser.evaluate("document.querySelector('input[name=\"choice-identified_by\"]').click()");
     await click("Apply choices and continue editing");
-    await click("Save Item");
+    await click("Save Item as draft");
     await until(browser, "document.querySelector('[role=status]')?.textContent.includes('No pending changes')");
     const saved = await fetch(apiPath, { headers }), data = await saved.json();
     assert.equal(data.identified_by[0].value, "My local revision");

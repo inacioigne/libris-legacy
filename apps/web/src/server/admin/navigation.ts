@@ -1,4 +1,5 @@
 import "server-only";
+import type { components } from "../../generated/catalogographic-openapi";
 import { messages, type Locale } from "../../i18n/messages";
 
 // UI requirements only: grants and role mapping belong exclusively to the API.
@@ -9,7 +10,7 @@ export const administrativePermissions = [
   "editorial:publish", "editorial:withdraw", "editorial:republish", "editorial:archive",
   "system:admin",
 ] as const;
-export type AdminPermission = (typeof administrativePermissions)[number];
+export type AdminPermission = components["schemas"]["Permission"];
 export interface PermissionRequirement {
   mode: "all" | "any";
   requiredPermissions: readonly AdminPermission[];

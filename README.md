@@ -1,5 +1,12 @@
 # Libris
 
+O frontend administrativo de Work, Instance e Item acompanha o
+[workspace simplificado de catalogação](docs/architecture/cataloging-workspace.md):
+salvar rascunho, validar a revisão persistida e publicar com revalidação
+transacional. Registros históricos em etapas intermediárias continuam com um
+caminho visual de compatibilidade. Consulte as
+[evidências datadas do frontend](docs/architecture/cataloging-workspace-frontend-verification-2026-10-21.md).
+
 O cadastro administrativo de Agent em `/pt/admin/authority/new` e
 `/en/admin/authority/new` utiliza o POST catalográfico existente, com
 `authority:manage`, formulário multilíngue e confirmação da identidade gerada
